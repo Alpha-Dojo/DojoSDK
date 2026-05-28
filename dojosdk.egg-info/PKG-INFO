@@ -1,0 +1,42 @@
+Metadata-Version: 2.4
+Name: dojosdk
+Version: 0.1.0
+Summary: Official Python client SDK for the Dojo API
+Author: Dojo SDK Authors
+License: MIT
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: httpx>=0.23.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: typing-extensions>=4.0.0
+Requires-Dist: anyio>=3.5.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: respx>=0.20.0; extra == "dev"
+Requires-Dist: build; extra == "dev"
+Dynamic: license-file
+
+# DojoSDK
+
+Official Python client SDK for the Dojo API.
+
+## Installation
+
+```bash
+pip install dojosdk-0.1.0-py3-none-any.whl
+```
+
+## Quick Start
+
+```python
+import dojo
+
+client = dojo.Dojo(api_key="your-api-key")
+ticker = client.market_data.get_ticker(exchange="BINANCE", bz_type="spot", symbol="BTCUSDT")
+print(ticker)
+```
