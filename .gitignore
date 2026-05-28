@@ -46,3 +46,4 @@ uv.lock
 .specify/
 .venv/
 .pytest_cache/
+*.egg-info/
