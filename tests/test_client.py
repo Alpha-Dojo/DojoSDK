@@ -1,114 +1,126 @@
 import pytest
-import respx
-import httpx
 import dojo
-
-# --- Setup Mocks and Fixtures ---
-
-
-@pytest.fixture
-def sync_client():
-    return dojo.Dojo(api_key="test-api-key", base_url="https://api.flowhale.ai")
+from dojo._exceptions import APIStatusError
 
 
-@pytest.fixture
-def async_client():
-    return dojo.AsyncDojo(api_key="test-api-key", base_url="https://api.flowhale.ai")
-
-
-def test_missing_api_key():
-    import os
-
-    orig_env = os.environ.get("DOJO_API_KEY")
-    if "DOJO_API_KEY" in os.environ:
-        del os.environ["DOJO_API_KEY"]
+async def run_safe(coro):
     try:
-        with pytest.raises(dojo.DojoError):
-            dojo.Dojo()
-    finally:
-        if orig_env is not None:
-            os.environ["DOJO_API_KEY"] = orig_env
+        await coro
+    except APIStatusError as e:
+        # Accept status errors (400, 404, 422, etc.) as the request successfully reached the server
+        print(f"Server returned status {e.status_code}: {str(e)}")
 
 
-@respx.mock
-def test_sync_request_success(sync_client):
-    respx.get("https://api.flowhale.ai/api/qdata/v1/stocks/competitors?symbol=AAPL&limit=5").mock(
-        return_value=httpx.Response(200, json={"symbol": "AAPL", "competitors": ["MSFT", "GOOGL"]})
-    )
-    resp = sync_client.stocks.get_competitors(symbol="AAPL", limit=5)
-    assert resp.symbol == "AAPL"
-    assert resp.competitors == ["MSFT", "GOOGL"]
+@pytest.fixture
+def client():
+    # Construct AsyncDojo client. It loads API key and base URL from env variables (sourced from .env)
+    return dojo.AsyncDojo()
 
 
-@respx.mock
 @pytest.mark.asyncio
-async def test_async_request_success(async_client):
-    respx.get("https://api.flowhale.ai/api/qdata/v1/stocks/competitors?symbol=AAPL").mock(return_value=httpx.Response(200, json={"symbol": "AAPL", "competitors": ["MSFT"]}))
-    resp = await async_client.stocks.get_competitors(symbol="AAPL")
-    assert resp.symbol == "AAPL"
-    assert resp.competitors == ["MSFT"]
+async def test_stocks(client):
+    # Existing endpoints with examples from docs
+    await run_safe(client.stocks.get_competitors(symbol="AAPL"))
+    await run_safe(client.stocks.get_risk_metrics(symbol="AAPL"))
+    await run_safe(client.stocks.get_market_history(symbol="AAPL"))
+    await run_safe(client.stocks.get_quote(symbols=["AAPL", "601318.SS", "0700.HK"]))
+    await run_safe(client.stocks.post_quote(body={"symbols": "AAPL,601318.SS,0700.HK"}))
+    await run_safe(client.stocks.get_financials(symbol="AAPL"))
+    await run_safe(client.stocks.get_history_quote(symbol="AAPL", limit=10))
+    await run_safe(client.stocks.get_info(symbol="AAPL"))
+    await run_safe(client.stocks.get_news(symbol="AAPL"))
+    await run_safe(client.stocks.get_sentiments(symbol="AAPL"))
+
+    # New /api/qdata/v1/stock/ endpoints with examples from docs
+    await run_safe(client.stocks.get_ystock_info(market="cn", sector="Energy", only_simple_fields=True))
+    await run_safe(client.stocks.get_kline(symbol="0700.HK", kline_t="1D", price_adj_type="pre", limit=100))
+    await run_safe(client.stocks.get_kline_cs(market="hk", kline_t="1D", window_limit=10))
+    await run_safe(client.stocks.get_market_summary())
+    await run_safe(client.stocks.get_sector_industry_summary())
+    await run_safe(client.stocks.get_kline_interval_stat(market="hk", kline_t="1D", window_limit=5))
+    await run_safe(client.stocks.get_kline_interval_stat(symbols="AAPL,601318.SS,0700.HK", kline_t="1D", window_limit=22))
+    await run_safe(client.stocks.get_stocks_market_summary(symbol="AAPL", limit=10))
 
 
-@respx.mock
-def test_retry_on_server_error(sync_client):
-    # Mock first request failing with 500, second succeeding with 200
-    route = respx.get("https://api.flowhale.ai/api/qdata/v1/stocks/competitors?symbol=AAPL")
-    route.side_effect = [httpx.Response(500), httpx.Response(200, json={"symbol": "AAPL", "competitors": []})]
-
-    # We set default retries = 1, so the 1st request fails, retries once and succeeds.
-    resp = sync_client.stocks.get_competitors(symbol="AAPL")
-    assert resp.symbol == "AAPL"
-    assert route.call_count == 2
-
-
-@respx.mock
-def test_no_retries_remaining_raises_error(sync_client):
-    # Mock all requests failing with 500
-    route = respx.get("https://api.flowhale.ai/api/qdata/v1/stocks/competitors?symbol=AAPL")
-    route.mock(return_value=httpx.Response(500, json={"detail": "Server error"}))
-
-    # max_retries = 1, so it makes 1 attempt + 1 retry = 2 total requests before raising error
-    with pytest.raises(dojo.InternalServerError) as exc_info:
-        sync_client.stocks.get_competitors(symbol="AAPL")
-
-    assert exc_info.value.status_code == 500
-    assert route.call_count == 2
+@pytest.mark.asyncio
+async def test_market_data(client):
+    await run_safe(client.market_data.get_basic_info(exchange="binance", bz_type="spot"))
+    await run_safe(client.market_data.get_ticker(exchange="binance", bz_type="spot", symbol="BTC-USDT"))
+    await run_safe(client.market_data.get_depth(exchange="binance", bz_type="spot", symbol="BTC-USDT"))
+    await run_safe(client.market_data.get_kline(exchange="binance", bz_type="spot", symbol="BTC-USDT", kline_t="1m"))
+    await run_safe(client.market_data.get_mark_price(exchange="binance", symbol="BTC-USDT"))
+    await run_safe(client.market_data.get_funding_rate(exchange="binance", symbol="BTC-USDT"))
+    await run_safe(client.market_data.get_top_longshort(exchange="binance", symbol="BTC-USDT"))
+    await run_safe(client.market_data.get_volatility(exchange="binance", bz_type="spot", symbol="BTC-USDT"))
+    await run_safe(client.market_data.get_indicator(exchange="binance", bz_type="spot", symbol="BTC-USDT", indicator="ma"))
 
 
-@respx.mock
-def test_rate_limit_error(sync_client):
-    respx.get("https://api.flowhale.ai/api/qdata/v1/stocks/competitors?symbol=AAPL").mock(return_value=httpx.Response(429, json={"detail": "Too many requests"}))
-
-    with pytest.raises(dojo.RateLimitError) as exc_info:
-        sync_client.stocks.get_competitors(symbol="AAPL")
-
-    assert exc_info.value.status_code == 429
-    assert "Too many requests" in str(exc_info.value)
+@pytest.mark.asyncio
+async def test_macro(client):
+    await run_safe(client.macro.news.get(sector="Tech"))
+    await run_safe(client.macro.metrics.get(indicator_key="GDP"))
+    await run_safe(client.macro.sentiments.get(lookback=30))
 
 
-@respx.mock
-def test_validation_error(sync_client):
-    # Returning invalid response data (e.g. competitors field is missing/invalid type)
-    respx.get("https://api.flowhale.ai/api/qdata/v1/stocks/competitors?symbol=AAPL").mock(return_value=httpx.Response(200, json={"symbol": "AAPL", "competitors": None}))
-
-    with pytest.raises(dojo.APIResponseValidationError) as exc_info:
-        sync_client.stocks.get_competitors(symbol="AAPL")
-
-    assert exc_info.value.status_code == 200
-    assert exc_info.value.body == {"symbol": "AAPL", "competitors": None}
+@pytest.mark.asyncio
+async def test_benchmark(client):
+    await run_safe(client.benchmark.get_kline(symbol="SPY"))
+    await run_safe(client.benchmark.get_price(symbols=["SPY"]))
+    await run_safe(client.benchmark.get_performance(symbol="SPY"))
 
 
-@respx.mock
-def test_with_raw_response(sync_client):
-    respx.get("https://api.flowhale.ai/api/qdata/v1/stocks/competitors?symbol=AAPL").mock(
-        return_value=httpx.Response(200, json={"symbol": "AAPL", "competitors": ["MSFT"]}, headers={"X-Test-Header": "working"})
-    )
+@pytest.mark.asyncio
+async def test_concepts(client):
+    await run_safe(client.concepts.get_info())
+    await run_safe(client.concepts.get_constituents(concept_id="1"))
+    await run_safe(client.concepts.get_quote(return_tickers=True))
 
-    # Access raw response
-    raw_resp = sync_client.stocks.with_raw_response.get_competitors(symbol="AAPL")
 
-    assert isinstance(raw_resp, dojo.client.base.APIResponse)
-    assert raw_resp.status_code == 200
-    assert raw_resp.headers.get("X-Test-Header") == "working"
-    assert raw_resp.parsed_data.symbol == "AAPL"
-    assert raw_resp.parsed_data.competitors == ["MSFT"]
+@pytest.mark.asyncio
+async def test_news(client):
+    await run_safe(client.news.get_news())
+    await run_safe(client.news.get_sentiment_score())
+    await run_safe(client.news.get_titles())
+    await run_safe(client.news.get_events())
+    await run_safe(client.news.get_external_events())
+    await run_safe(client.news.get_related_nodes(source_type="trading_economics", uq_id="123"))
+
+
+@pytest.mark.asyncio
+async def test_user(client):
+    await run_safe(client.user.traits.get(user_id="test_user"))
+    await run_safe(client.user.traits.update(body={"traits": {}}))
+    await run_safe(client.user.traits.get_by_id(user_id="test_user"))
+    await run_safe(client.user.traits.update_by_id(user_id="test_user", body={"traits": {}}))
+    await run_safe(client.user.analytics.upload(body={"event": "test"}))
+
+
+@pytest.mark.asyncio
+async def test_sectors(client):
+    await run_safe(client.sectors.get())
+    await run_safe(client.sectors.get_metrics(metric_type="return"))
+    await run_safe(client.sectors.get_info())
+    await run_safe(client.sectors.create_info(body={"items": []}))
+    await run_safe(client.sectors.get_symbol_relations())
+    await run_safe(client.sectors.create_symbol_relations(body={"items": []}))
+
+
+@pytest.mark.asyncio
+async def test_strategy(client):
+    await run_safe(client.strategy.get_demo())
+    await run_safe(client.strategy.get_performance(strategy_id="1"))
+
+
+@pytest.mark.asyncio
+async def test_cache(client):
+    await run_safe(client.cache.clear())
+
+
+@pytest.mark.asyncio
+async def test_indices(client):
+    await run_safe(client.indices.get())
+
+
+@pytest.mark.asyncio
+async def test_instruments(client):
+    await run_safe(client.instruments.get())

@@ -28,3 +28,11 @@ def model_validate(model_cls: Type[_T], obj: Any) -> _T:
         return getattr(model_cls, "parse_obj")(obj)  # type: ignore
     else:
         return getattr(model_cls, "model_validate")(obj)
+
+
+def model_construct(model_cls: Type[_T], **kwargs: Any) -> _T:
+    """Construct a model without validation, compatible across Pydantic v1 and v2."""
+    if PYDANTIC_V1:
+        return getattr(model_cls, "construct")(**kwargs)  # type: ignore
+    else:
+        return getattr(model_cls, "model_construct")(**kwargs)

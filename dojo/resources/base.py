@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from dojo.logging import logger
 
 
 class SyncAPIResource:
@@ -8,16 +9,10 @@ class SyncAPIResource:
         self._client = client
         self._is_raw = is_raw
 
-        if is_raw:
-            self._get = lambda path, cast_to, options=None: client.get(path, cast_to=cast_to, options=self._add_raw(options))
-            self._post = lambda path, cast_to, options=None: client.post(path, cast_to=cast_to, options=self._add_raw(options))
-            self._put = lambda path, cast_to, options=None: client.put(path, cast_to=cast_to, options=self._add_raw(options))
-            self._delete = lambda path, cast_to, options=None: client.delete(path, cast_to=cast_to, options=self._add_raw(options))
-        else:
-            self._get = client.get
-            self._post = client.post
-            self._put = client.put
-            self._delete = client.delete
+        self._get = lambda path, cast_to, options=None: self._request("GET", path, cast_to=cast_to, options=options)
+        self._post = lambda path, cast_to, options=None: self._request("POST", path, cast_to=cast_to, options=options)
+        self._put = lambda path, cast_to, options=None: self._request("PUT", path, cast_to=cast_to, options=options)
+        self._delete = lambda path, cast_to, options=None: self._request("DELETE", path, cast_to=cast_to, options=options)
 
     def _add_raw(self, options: dict[str, Any] | None) -> dict[str, Any]:
         opts = dict(options) if options is not None else {}
@@ -27,6 +22,19 @@ class SyncAPIResource:
     @property
     def with_raw_response(self) -> Any:
         return self.__class__(self._client, is_raw=True)
+
+    def _request(self, method: str, path: str, *, cast_to: Any, options: dict[str, Any] | None = None) -> Any:
+        opts = self._add_raw(options) if self._is_raw else (options or {})
+        logger.debug(f"Request: {method} {path} | cast_to: {cast_to} | options: {opts}")
+        client_func = getattr(self._client, method.lower())
+        try:
+            return client_func(path, cast_to=cast_to, options=opts)
+        except Exception as e:
+            err_msg = f"Request error: {method} {path} | Error: {e}"
+            if hasattr(e, "body") and getattr(e, "body") is not None:
+                err_msg += f" | Body: {getattr(e, 'body')}"
+            logger.error(err_msg, exc_info=True)
+            raise e
 
 
 class AsyncAPIResource:
@@ -34,16 +42,10 @@ class AsyncAPIResource:
         self._client = client
         self._is_raw = is_raw
 
-        if is_raw:
-            self._get = lambda path, cast_to, options=None: client.get(path, cast_to=cast_to, options=self._add_raw(options))
-            self._post = lambda path, cast_to, options=None: client.post(path, cast_to=cast_to, options=self._add_raw(options))
-            self._put = lambda path, cast_to, options=None: client.put(path, cast_to=cast_to, options=self._add_raw(options))
-            self._delete = lambda path, cast_to, options=None: client.delete(path, cast_to=cast_to, options=self._add_raw(options))
-        else:
-            self._get = client.get
-            self._post = client.post
-            self._put = client.put
-            self._delete = client.delete
+        self._get = lambda path, cast_to, options=None: self._request("GET", path, cast_to=cast_to, options=options)
+        self._post = lambda path, cast_to, options=None: self._request("POST", path, cast_to=cast_to, options=options)
+        self._put = lambda path, cast_to, options=None: self._request("PUT", path, cast_to=cast_to, options=options)
+        self._delete = lambda path, cast_to, options=None: self._request("DELETE", path, cast_to=cast_to, options=options)
 
     def _add_raw(self, options: dict[str, Any] | None) -> dict[str, Any]:
         opts = dict(options) if options is not None else {}
@@ -53,3 +55,16 @@ class AsyncAPIResource:
     @property
     def with_raw_response(self) -> Any:
         return self.__class__(self._client, is_raw=True)
+
+    async def _request(self, method: str, path: str, *, cast_to: Any, options: dict[str, Any] | None = None) -> Any:
+        opts = self._add_raw(options) if self._is_raw else (options or {})
+        logger.debug(f"Request: {method} {path} | cast_to: {cast_to} | options: {opts}")
+        client_func = getattr(self._client, method.lower())
+        try:
+            return await client_func(path, cast_to=cast_to, options=opts)
+        except Exception as e:
+            err_msg = f"Request error: {method} {path} | Error: {e}"
+            if hasattr(e, "body") and getattr(e, "body") is not None:
+                err_msg += f" | Body: {getattr(e, 'body')}"
+            logger.error(err_msg, exc_info=True)
+            raise e

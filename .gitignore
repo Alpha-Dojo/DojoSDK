@@ -47,3 +47,5 @@ uv.lock
 .venv/
 .pytest_cache/
 *.egg-info/
+dist/
+build/

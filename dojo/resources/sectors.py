@@ -5,6 +5,10 @@ from dojo.resources.base import SyncAPIResource, AsyncAPIResource
 from dojo.types.models import (
     SectorsResponse,
     SectorMetricsResponse,
+    SectorInfoListResponse,
+    SectorInfoCreateResponse,
+    SectorSymbolRelationListResponse,
+    SectorSymbolRelationCreateResponse,
 )
 
 
@@ -75,6 +79,95 @@ class Sectors(SyncAPIResource):
             params["as_of_date"] = as_of_date
         return self._get("/api/qdata/v1/sectors/metrics", cast_to=SectorMetricsResponse, options={"params": params})
 
+    def get_info(
+        self,
+        *,
+        name: str | None = None,
+        name_alias: str | None = None,
+        description_alias: str | None = None,
+        level: int | None = None,
+        parent_id: int | None = None,
+        sensitivity: str | None = None,
+        tree: bool | None = None,
+    ) -> SectorInfoListResponse:
+        """Retrieves detailed sector taxonomy information.
+
+        Parameters
+        ----------
+        name : str, optional
+            Sector name.
+        name_alias : str, optional
+            Sector name alias.
+        description_alias : str, optional
+            Sector description alias.
+        level : int, optional
+            Sector hierarchy level.
+        parent_id : int, optional
+            Parent sector ID.
+        sensitivity : str, optional
+            Sector sensitivity.
+        tree : bool, optional
+            Whether to return in tree format (default: False).
+        """
+        params: dict[str, Any] = {}
+        if name is not None:
+            params["name"] = name
+        if name_alias is not None:
+            params["name_alias"] = name_alias
+        if description_alias is not None:
+            params["description_alias"] = description_alias
+        if level is not None:
+            params["level"] = level
+        if parent_id is not None:
+            params["parent_id"] = parent_id
+        if sensitivity is not None:
+            params["sensitivity"] = sensitivity
+        if tree is not None:
+            params["tree"] = tree
+        return self._get("/api/qdata/v1/sector/info", cast_to=SectorInfoListResponse, options={"params": params})
+
+    def create_info(self, *, body: dict[str, Any]) -> SectorInfoCreateResponse:
+        """Creates new sector taxonomy items.
+
+        Parameters
+        ----------
+        body : dict
+            Request body containing items to create.
+        """
+        return self._post("/api/qdata/v1/sector/info", cast_to=SectorInfoCreateResponse, options={"json": body})
+
+    def get_symbol_relations(
+        self,
+        *,
+        sector_name: str | None = None,
+        symbol: str | None = None,
+    ) -> SectorSymbolRelationListResponse:
+        """Retrieves relationships between sectors and stock/instrument symbols.
+
+        Parameters
+        ----------
+        sector_name : str, optional
+            Sector name to query.
+        symbol : str, optional
+            Symbol to query.
+        """
+        params: dict[str, Any] = {}
+        if sector_name is not None:
+            params["sector_name"] = sector_name
+        if symbol is not None:
+            params["symbol"] = symbol
+        return self._get("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationListResponse, options={"params": params})
+
+    def create_symbol_relations(self, *, body: dict[str, Any]) -> SectorSymbolRelationCreateResponse:
+        """Maps symbols to sectors.
+
+        Parameters
+        ----------
+        body : dict
+            Request body containing symbol mappings.
+        """
+        return self._post("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationCreateResponse, options={"json": body})
+
 
 class AsyncSectors(AsyncAPIResource):
 
@@ -142,3 +235,92 @@ class AsyncSectors(AsyncAPIResource):
         if as_of_date is not None:
             params["as_of_date"] = as_of_date
         return await self._get("/api/qdata/v1/sectors/metrics", cast_to=SectorMetricsResponse, options={"params": params})
+
+    async def get_info(
+        self,
+        *,
+        name: str | None = None,
+        name_alias: str | None = None,
+        description_alias: str | None = None,
+        level: int | None = None,
+        parent_id: int | None = None,
+        sensitivity: str | None = None,
+        tree: bool | None = None,
+    ) -> SectorInfoListResponse:
+        """Retrieves detailed sector taxonomy information asynchronously.
+
+        Parameters
+        ----------
+        name : str, optional
+            Sector name.
+        name_alias : str, optional
+            Sector name alias.
+        description_alias : str, optional
+            Sector description alias.
+        level : int, optional
+            Sector hierarchy level.
+        parent_id : int, optional
+            Parent sector ID.
+        sensitivity : str, optional
+            Sector sensitivity.
+        tree : bool, optional
+            Whether to return in tree format (default: False).
+        """
+        params: dict[str, Any] = {}
+        if name is not None:
+            params["name"] = name
+        if name_alias is not None:
+            params["name_alias"] = name_alias
+        if description_alias is not None:
+            params["description_alias"] = description_alias
+        if level is not None:
+            params["level"] = level
+        if parent_id is not None:
+            params["parent_id"] = parent_id
+        if sensitivity is not None:
+            params["sensitivity"] = sensitivity
+        if tree is not None:
+            params["tree"] = tree
+        return await self._get("/api/qdata/v1/sector/info", cast_to=SectorInfoListResponse, options={"params": params})
+
+    async def create_info(self, *, body: dict[str, Any]) -> SectorInfoCreateResponse:
+        """Creates new sector taxonomy items asynchronously.
+
+        Parameters
+        ----------
+        body : dict
+            Request body containing items to create.
+        """
+        return await self._post("/api/qdata/v1/sector/info", cast_to=SectorInfoCreateResponse, options={"json": body})
+
+    async def get_symbol_relations(
+        self,
+        *,
+        sector_name: str | None = None,
+        symbol: str | None = None,
+    ) -> SectorSymbolRelationListResponse:
+        """Retrieves relationships between sectors and stock/instrument symbols asynchronously.
+
+        Parameters
+        ----------
+        sector_name : str, optional
+            Sector name to query.
+        symbol : str, optional
+            Symbol to query.
+        """
+        params: dict[str, Any] = {}
+        if sector_name is not None:
+            params["sector_name"] = sector_name
+        if symbol is not None:
+            params["symbol"] = symbol
+        return await self._get("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationListResponse, options={"params": params})
+
+    async def create_symbol_relations(self, *, body: dict[str, Any]) -> SectorSymbolRelationCreateResponse:
+        """Maps symbols to sectors asynchronously.
+
+        Parameters
+        ----------
+        body : dict
+            Request body containing symbol mappings.
+        """
+        return await self._post("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationCreateResponse, options={"json": body})

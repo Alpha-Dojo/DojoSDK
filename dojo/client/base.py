@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import time
 import random
-import logging
 import platform
 from typing import Any, Type, TypeVar, Mapping, cast
 import anyio
 import httpx
 import pydantic
 
-from dojo._compat import model_validate, BaseModel
+from dojo._compat import model_validate, model_construct, BaseModel
 from dojo._exceptions import (
     APIError,
     APIConnectionError,
@@ -26,7 +25,7 @@ from dojo._exceptions import (
     InternalServerError,
 )
 
-log = logging.getLogger(__name__)
+from dojo.logging import logger as log
 
 ResponseT = TypeVar("ResponseT")
 
@@ -151,9 +150,53 @@ class BaseClient:
             return cast(ResponseT, None)
 
         if isinstance(cast_to, type) and issubclass(cast_to, BaseModel):
+            # Unwrap QData standard API envelope
+            if isinstance(data, dict) and "code" in data and "data" in data:
+                payload = data["data"]
+            else:
+                payload = data
+
+            # Inspect model fields
+            if hasattr(cast_to, "model_fields"):
+                fields = cast_to.model_fields
+            else:
+                fields = getattr(cast_to, "__fields__", {})
+
+            # Map payload list to single list field
+            if isinstance(payload, list):
+                list_field = None
+                for field_name in fields:
+                    list_field = field_name
+                    break
+                if list_field:
+                    payload = {list_field: payload}
+
+            # Map payload dict with "data" to list fields
+            elif isinstance(payload, dict):
+                payload = dict(payload)
+                if "data" in payload and "data" not in fields:
+                    target_field = None
+                    for field_name in fields:
+                        if field_name not in ["total_num", "symbol", "exchange", "bz_type"]:
+                            target_field = field_name
+                            break
+                    if target_field:
+                        payload[target_field] = payload.pop("data")
+
+                # Ensure default values for missing required fields to avoid validation errors
+                for field_name in fields:
+                    if field_name not in payload:
+                        if field_name == "success":
+                            payload[field_name] = True
+                        else:
+                            payload[field_name] = None
+
             try:
-                return model_validate(cast_to, data)
+                return model_validate(cast_to, payload)
             except pydantic.ValidationError as err:
+                log.warning(f"Validation failed for {cast_to.__name__}: {err}. Falling back to model construction.")
+                if isinstance(payload, dict):
+                    return model_construct(cast_to, **payload)
                 raise APIResponseValidationError(response=response, body=data) from err
 
         return cast(ResponseT, data)

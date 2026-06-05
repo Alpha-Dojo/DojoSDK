@@ -39,6 +39,13 @@ from dojo.types.models import (
     StrategyDemoResponse as StrategyDemoResponse,
     StrategyPerformanceResponse as StrategyPerformanceResponse,
     CacheResponse as CacheResponse,
+    ExternalEventRelatedNodesResponse as ExternalEventRelatedNodesResponse,
+    SectorInfoListResponse as SectorInfoListResponse,
+    SectorInfoCreateRequest as SectorInfoCreateRequest,
+    SectorInfoCreateResponse as SectorInfoCreateResponse,
+    SectorSymbolRelationListResponse as SectorSymbolRelationListResponse,
+    SectorSymbolRelationCreateRequest as SectorSymbolRelationCreateRequest,
+    SectorSymbolRelationCreateResponse as SectorSymbolRelationCreateResponse,
 )
 
 __all__ = [
@@ -82,4 +89,11 @@ __all__ = [
     "StrategyDemoResponse",
     "StrategyPerformanceResponse",
     "CacheResponse",
+    "ExternalEventRelatedNodesResponse",
+    "SectorInfoListResponse",
+    "SectorInfoCreateRequest",
+    "SectorInfoCreateResponse",
+    "SectorSymbolRelationListResponse",
+    "SectorSymbolRelationCreateRequest",
+    "SectorSymbolRelationCreateResponse",
 ]

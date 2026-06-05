@@ -242,3 +242,113 @@ class StrategyPerformanceResponse(DojoModel):
 class CacheResponse(DojoModel):
     success: bool
     message: str | None = None
+
+
+# --- News (Added Endpoints) ---
+class ExternalEventRelatedNodesResponse(DojoModel):
+    event: Dict[str, Any]
+    graph_root: Dict[str, Any]
+    nodes: List[Dict[str, Any]] | None = None
+    edges: List[Dict[str, Any]] | None = None
+    meta: Dict[str, Any]
+
+
+# --- Sector (Added Endpoints) ---
+class SectorInfoListResponse(DojoModel):
+    total_num: int
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorInfoCreateRequest(DojoModel):
+    items: List[Dict[str, Any]]
+
+
+class SectorInfoCreateResponse(DojoModel):
+    created: int
+
+
+class SectorSymbolRelationListResponse(DojoModel):
+    total_num: int
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorSymbolRelationCreateRequest(DojoModel):
+    items: List[Dict[str, Any]]
+
+
+class SectorSymbolRelationCreateResponse(DojoModel):
+    created: int
+
+
+# --- Stocks (Added Endpoints) ---
+class YStockInfoItem(DojoModel):
+    ticker: str
+    short_name: str | None = None
+    long_name: str | None = None
+    market: str | None = None
+    full_exchange_name: str | None = None
+    city: str | None = None
+    zip: str | None = None
+    country: str | None = None
+    phone: str | None = None
+    website: str | None = None
+    fax: str | None = None
+    industry: str | None = None
+    sector: str | None = None
+
+
+class YStockInfoResponse(DojoModel):
+    total_num: int
+    stocks: List[YStockInfoItem]
+
+
+class StockKlineResponseItem(DojoModel):
+    symbol: str
+    kline_t: str
+    bar_time: str
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    vol: float | None = None
+    amount: float | None = None
+    change_p: float | None = None
+    tr: float | None = None
+    adj_factor_cum: float | None = 1.0
+    dividends: float | None = None
+    splits: float | None = None
+
+
+class StockKlineResponse(DojoModel):
+    total_num: int
+    klines: List[StockKlineResponseItem]
+
+
+class StockKlineCSResponse(DojoModel):
+    total_num: int
+    klines: List[Dict[str, Any]]
+
+
+class StockMarketSummaryResponse(DojoModel):
+    total_num: int
+    summary: Dict[str, Any]
+
+
+class StockSectorIndustrySummaryResponse(DojoModel):
+    total_num: int
+    summary: Dict[str, Any]
+
+
+class StockKlineIntervalStatResponse(DojoModel):
+    total_num: int
+    stats: List[Dict[str, Any]]
+
+
+class StocksMarketSummaryItem(DojoModel):
+    ticker: str
+    summary: str
+
+
+class StocksMarketSummaryResponse(DojoModel):
+    total_num: int
+    data: List[StocksMarketSummaryItem]

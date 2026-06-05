@@ -8,6 +8,7 @@ from dojo.types.models import (
     NewsTitleResponse,
     StockEventResponse,
     ExternalEventsResponse,
+    ExternalEventRelatedNodesResponse,
 )
 
 
@@ -208,6 +209,33 @@ class News(SyncAPIResource):
             params["source_type"] = source_type
         return self._get("/api/qdata/v1/external_events", cast_to=ExternalEventsResponse, options={"params": params})
 
+    def get_related_nodes(
+        self,
+        *,
+        source_type: str,
+        uq_id: str,
+        limit: int | None = None,
+    ) -> ExternalEventRelatedNodesResponse:
+        """Retrieves related nodes and graph structures for an external event.
+
+        Parameters
+        ----------
+        source_type : str
+            The type of source (e.g. trading_economics, polymarket_event, polymarket_market).
+        uq_id : str
+            Unique identifier of the event.
+        limit : int, optional
+            Max records count (default: 50, max: 200, min: 1).
+        """
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        return self._get(
+            f"/api/qdata/v1/external_events/{source_type}/{uq_id}/related_nodes",
+            cast_to=ExternalEventRelatedNodesResponse,
+            options={"params": params},
+        )
+
 
 class AsyncNews(AsyncAPIResource):
 
@@ -405,3 +433,30 @@ class AsyncNews(AsyncAPIResource):
         if source_type is not None:
             params["source_type"] = source_type
         return await self._get("/api/qdata/v1/external_events", cast_to=ExternalEventsResponse, options={"params": params})
+
+    async def get_related_nodes(
+        self,
+        *,
+        source_type: str,
+        uq_id: str,
+        limit: int | None = None,
+    ) -> ExternalEventRelatedNodesResponse:
+        """Retrieves related nodes and graph structures for an external event asynchronously.
+
+        Parameters
+        ----------
+        source_type : str
+            The type of source (e.g. trading_economics, polymarket_event, polymarket_market).
+        uq_id : str
+            Unique identifier of the event.
+        limit : int, optional
+            Max records count (default: 50, max: 200, min: 1).
+        """
+        params: dict[str, Any] = {}
+        if limit is not None:
+            params["limit"] = limit
+        return await self._get(
+            f"/api/qdata/v1/external_events/{source_type}/{uq_id}/related_nodes",
+            cast_to=ExternalEventRelatedNodesResponse,
+            options={"params": params},
+        )
