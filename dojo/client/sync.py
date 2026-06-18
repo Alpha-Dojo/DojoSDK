@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from dojo.resources.benchmark import Benchmark
     from dojo.resources.concepts import Concepts
     from dojo.resources.news import News
+    from dojo.resources.forex import Forex
     from dojo.resources.user import User
     from dojo.resources.sectors import Sectors
     from dojo.resources.strategy import Strategy
@@ -34,6 +35,7 @@ class Dojo(SyncAPIClient):
         http_client: httpx.Client | None = None,
         default_headers: Mapping[str, str] | None = None,
         default_query: Mapping[str, object] | None = None,
+        return_raw_data: bool = True,
     ) -> None:
         """Constructs a new synchronous Dojo client instance.
 
@@ -54,11 +56,23 @@ class Dojo(SyncAPIClient):
             A dictionary of custom HTTP headers to send with every request.
         default_query : dict, optional
             A dictionary of custom query parameters to send with every request.
+        return_raw_data : bool, default True
+            If True, API responses are returned as native Python dictionaries/lists,
+            skipping Pydantic model validation.
         """
+        from dojo.datasource.config import is_online, HFConfig
+        from dojo.datasource.huggingface import HuggingFaceDataSource
+
+        self._online = is_online()
+
         api_key = api_key or os.environ.get("DOJO_API_KEY")
-        if not api_key:
+        if self._online and not api_key:
             raise DojoError("Missing authentication credentials. Please pass an `api_key` or set " "the `DOJO_API_KEY` environment variable.")
         self.api_key = api_key
+
+        self._data_source = None
+        if not self._online:
+            self._data_source = HuggingFaceDataSource(HFConfig.from_env())
 
         base_url = base_url or os.environ.get("DOJO_BASE_URL") or "https://api.flowhale.ai"
 
@@ -77,6 +91,7 @@ class Dojo(SyncAPIClient):
             max_retries=max_retries,
             custom_headers=default_headers,
             custom_query=default_query,
+            return_raw_data=return_raw_data,
         )
 
     @property
@@ -90,6 +105,22 @@ class Dojo(SyncAPIClient):
         headers = super().default_headers
         headers.update(self.auth_headers)
         return headers
+
+    def start_background_sync(self, interval_days: int = 1) -> None:
+        """Starts a background daemon thread that refreshes offline datasets periodically.
+
+        Parameters
+        ----------
+        interval_days : int
+            The number of days between each refresh. Defaults to 1.
+        """
+        if self._data_source is not None and hasattr(self._data_source, "start_background_sync"):
+            self._data_source.start_background_sync(interval_days=interval_days)
+
+    def stop_background_sync(self) -> None:
+        """Stops the background dataset refresh thread."""
+        if self._data_source is not None and hasattr(self._data_source, "stop_background_sync"):
+            self._data_source.stop_background_sync()
 
     @cached_property
     def stocks(self) -> Stocks:
@@ -132,6 +163,13 @@ class Dojo(SyncAPIClient):
         from dojo.resources.news import News
 
         return News(self)
+
+    @cached_property
+    def forex(self) -> Forex:
+        """Access the forex resource namespace for forex quotes, klines, and symbol lists."""
+        from dojo.resources.forex import Forex
+
+        return Forex(self)
 
     @cached_property
     def user(self) -> User:

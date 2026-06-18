@@ -352,3 +352,33 @@ class StocksMarketSummaryItem(DojoModel):
 class StocksMarketSummaryResponse(DojoModel):
     total_num: int
     data: List[StocksMarketSummaryItem]
+
+
+# --- Stocks (OpenAPI sync: event remind / financial indicators / main income) ---
+class StockEventRemindResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class StockFinIndicatorsResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class StockMainIncomeResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+# --- Forex ---
+class ForexCurrentQuoteResponse(DojoModel):
+    quotes: List[Dict[str, Any]] | None = None
+
+
+class ForexKlineResponse(DojoModel):
+    symbol: str | None = None
+    klines: List[List[Any]] | None = None
+
+
+class ForexSymbolListResponse(DojoModel):
+    symbols: List[Dict[str, Any]] | None = None

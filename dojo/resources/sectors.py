@@ -126,6 +126,8 @@ class Sectors(SyncAPIResource):
             params["tree"] = tree
         return self._get("/api/qdata/v1/sector/info", cast_to=SectorInfoListResponse, options={"params": params})
 
+    info = get_info
+
     def create_info(self, *, body: dict[str, Any]) -> SectorInfoCreateResponse:
         """Creates new sector taxonomy items.
 
@@ -141,6 +143,7 @@ class Sectors(SyncAPIResource):
         *,
         sector_name: str | None = None,
         symbol: str | None = None,
+        relation_priority: str | None = None,
     ) -> SectorSymbolRelationListResponse:
         """Retrieves relationships between sectors and stock/instrument symbols.
 
@@ -150,12 +153,16 @@ class Sectors(SyncAPIResource):
             Sector name to query.
         symbol : str, optional
             Symbol to query.
+        relation_priority : str, optional
+            Relation priority filter.
         """
         params: dict[str, Any] = {}
         if sector_name is not None:
             params["sector_name"] = sector_name
         if symbol is not None:
             params["symbol"] = symbol
+        if relation_priority is not None:
+            params["relation_priority"] = relation_priority
         return self._get("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationListResponse, options={"params": params})
 
     def create_symbol_relations(self, *, body: dict[str, Any]) -> SectorSymbolRelationCreateResponse:
@@ -283,6 +290,8 @@ class AsyncSectors(AsyncAPIResource):
             params["tree"] = tree
         return await self._get("/api/qdata/v1/sector/info", cast_to=SectorInfoListResponse, options={"params": params})
 
+    info = get_info
+
     async def create_info(self, *, body: dict[str, Any]) -> SectorInfoCreateResponse:
         """Creates new sector taxonomy items asynchronously.
 
@@ -298,6 +307,7 @@ class AsyncSectors(AsyncAPIResource):
         *,
         sector_name: str | None = None,
         symbol: str | None = None,
+        relation_priority: str | None = None,
     ) -> SectorSymbolRelationListResponse:
         """Retrieves relationships between sectors and stock/instrument symbols asynchronously.
 
@@ -307,12 +317,16 @@ class AsyncSectors(AsyncAPIResource):
             Sector name to query.
         symbol : str, optional
             Symbol to query.
+        relation_priority : str, optional
+            Relation priority filter.
         """
         params: dict[str, Any] = {}
         if sector_name is not None:
             params["sector_name"] = sector_name
         if symbol is not None:
             params["symbol"] = symbol
+        if relation_priority is not None:
+            params["relation_priority"] = relation_priority
         return await self._get("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationListResponse, options={"params": params})
 
     async def create_symbol_relations(self, *, body: dict[str, Any]) -> SectorSymbolRelationCreateResponse:

@@ -18,6 +18,9 @@ from dojo.types.models import (
     StockSectorIndustrySummaryResponse,
     StockKlineIntervalStatResponse,
     StocksMarketSummaryResponse,
+    StockEventRemindResponse,
+    StockFinIndicatorsResponse,
+    StockMainIncomeResponse,
 )
 
 
@@ -171,6 +174,8 @@ class Stocks(SyncAPIResource):
             params["symbols"] = symbols
         return self._get("/api/qdata/v1/stocks/current_quote", cast_to=CurrentQuoteResponse, options={"params": params})
 
+    quote = get_quote
+
     def post_quote(self, *, body: dict[str, Any]) -> CurrentQuoteResponse:
         """Submits a payload to retrieve stock quotes.
 
@@ -258,11 +263,7 @@ class Stocks(SyncAPIResource):
         *,
         symbol: str,
         page: int | None = None,
-        size: int | None = None,
-        limit: int | None = None,
-        order_by: str | None = None,
-        order_type: str | None = None,
-        include_fields: List[str] | None = None,
+        page_size: int | None = None,
     ) -> StockNewsResponse:
         """Retrieves news articles related to a stock.
 
@@ -272,31 +273,17 @@ class Stocks(SyncAPIResource):
             Target stock ticker symbol.
         page : int, optional
             Page number.
-        size : int, optional
-            Elements per page.
-        limit : int, optional
-            Max records.
-        order_by : str, optional
-            Sorting field.
-        order_type : str, optional
-            Sort direction.
-        include_fields : list of str, optional
-            Specific fields to return.
+        page_size : int, optional
+            Number of elements per page.
         """
         params: dict[str, Any] = {"symbol": symbol}
         if page is not None:
             params["page"] = page
-        if size is not None:
-            params["size"] = size
-        if limit is not None:
-            params["limit"] = limit
-        if order_by is not None:
-            params["order_by"] = order_by
-        if order_type is not None:
-            params["order_type"] = order_type
-        if include_fields is not None:
-            params["include_fields"] = include_fields
+        if page_size is not None:
+            params["page_size"] = page_size
         return self._get("/api/qdata/v1/stocks/news", cast_to=StockNewsResponse, options={"params": params})
+
+    news = get_news
 
     def get_sentiments(
         self,
@@ -377,6 +364,8 @@ class Stocks(SyncAPIResource):
         if symbols is not None:
             params["symbols"] = symbols
         if market is not None:
+            if market == "sh":
+                market = "cn"
             params["market"] = market
         if full_exchange_name is not None:
             params["full_exchange_name"] = full_exchange_name
@@ -389,6 +378,8 @@ class Stocks(SyncAPIResource):
         if return_field_list is not None:
             params["return_field_list"] = return_field_list
         return self._get("/api/qdata/v1/stock/ystock_info", cast_to=YStockInfoResponse, options={"params": params})
+
+    list = get_ystock_info
 
     def get_kline(
         self,
@@ -434,6 +425,8 @@ class Stocks(SyncAPIResource):
         if limit is not None:
             params["limit"] = limit
         return self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
+
+    kline = get_kline
 
     def get_kline_cs(
         self,
@@ -602,6 +595,92 @@ class Stocks(SyncAPIResource):
             params["end"] = end
         return self._get("/api/qdata/v1/stocks/market-summary", cast_to=StocksMarketSummaryResponse, options={"params": params})
 
+    def get_event_remind(
+        self,
+        *,
+        symbol: str,
+        page: int | None = None,
+        page_size: int | None = None,
+    ) -> StockEventRemindResponse:
+        """Retrieves important upcoming events to remind for a stock.
+
+        Parameters
+        ----------
+        symbol : str
+            Target stock ticker symbol.
+        page : int, optional
+            Page number.
+        page_size : int, optional
+            Number of elements per page.
+        """
+        params: dict[str, Any] = {"symbol": symbol}
+        if page is not None:
+            params["page"] = page
+        if page_size is not None:
+            params["page_size"] = page_size
+        return self._get("/api/qdata/v1/stock/event_remind", cast_to=StockEventRemindResponse, options={"params": params})
+
+    events = get_event_remind
+
+    def get_fin_indicators(
+        self,
+        *,
+        symbol: str,
+        report_type: str | None = None,
+        end_date: str | None = None,
+        limit: int | None = None,
+    ) -> StockFinIndicatorsResponse:
+        """Retrieves main financial indicators for a stock.
+
+        Parameters
+        ----------
+        symbol : str
+            Target stock ticker symbol.
+        report_type : str, optional
+            Financial report type filter.
+        end_date : str, optional
+            ISO-8601 end date.
+        limit : int, optional
+            Max records.
+        """
+        params: dict[str, Any] = {"symbol": symbol}
+        if report_type is not None:
+            params["report_type"] = report_type
+        if end_date is not None:
+            params["end_date"] = end_date
+        if limit is not None:
+            params["limit"] = limit
+        return self._get("/api/qdata/v1/stock/fin_indicators", cast_to=StockFinIndicatorsResponse, options={"params": params})
+
+    fin_indicators = get_fin_indicators
+
+    def get_main_income(
+        self,
+        *,
+        symbol: str,
+        page: int | None = None,
+        page_size: int | None = None,
+    ) -> StockMainIncomeResponse:
+        """Retrieves main business income structure for a stock.
+
+        Parameters
+        ----------
+        symbol : str
+            Target stock ticker symbol.
+        page : int, optional
+            Page number.
+        page_size : int, optional
+            Number of elements per page.
+        """
+        params: dict[str, Any] = {"symbol": symbol}
+        if page is not None:
+            params["page"] = page
+        if page_size is not None:
+            params["page_size"] = page_size
+        return self._get("/api/qdata/v1/stock/main_income", cast_to=StockMainIncomeResponse, options={"params": params})
+
+    main_income = get_main_income
+
 
 class AsyncStocks(AsyncAPIResource):
 
@@ -753,6 +832,8 @@ class AsyncStocks(AsyncAPIResource):
             params["symbols"] = symbols
         return await self._get("/api/qdata/v1/stocks/current_quote", cast_to=CurrentQuoteResponse, options={"params": params})
 
+    quote = get_quote
+
     async def post_quote(self, *, body: dict[str, Any]) -> CurrentQuoteResponse:
         """Submits a payload to retrieve stock quotes asynchronously.
 
@@ -840,11 +921,7 @@ class AsyncStocks(AsyncAPIResource):
         *,
         symbol: str,
         page: int | None = None,
-        size: int | None = None,
-        limit: int | None = None,
-        order_by: str | None = None,
-        order_type: str | None = None,
-        include_fields: List[str] | None = None,
+        page_size: int | None = None,
     ) -> StockNewsResponse:
         """Retrieves news articles related to a stock asynchronously.
 
@@ -854,31 +931,17 @@ class AsyncStocks(AsyncAPIResource):
             Target stock ticker symbol.
         page : int, optional
             Page number.
-        size : int, optional
-            Elements per page.
-        limit : int, optional
-            Max records.
-        order_by : str, optional
-            Sorting field.
-        order_type : str, optional
-            Sort direction.
-        include_fields : list of str, optional
-            Specific fields to return.
+        page_size : int, optional
+            Number of elements per page.
         """
         params: dict[str, Any] = {"symbol": symbol}
         if page is not None:
             params["page"] = page
-        if size is not None:
-            params["size"] = size
-        if limit is not None:
-            params["limit"] = limit
-        if order_by is not None:
-            params["order_by"] = order_by
-        if order_type is not None:
-            params["order_type"] = order_type
-        if include_fields is not None:
-            params["include_fields"] = include_fields
+        if page_size is not None:
+            params["page_size"] = page_size
         return await self._get("/api/qdata/v1/stocks/news", cast_to=StockNewsResponse, options={"params": params})
+
+    news = get_news
 
     async def get_sentiments(
         self,
@@ -959,6 +1022,8 @@ class AsyncStocks(AsyncAPIResource):
         if symbols is not None:
             params["symbols"] = symbols
         if market is not None:
+            if market == "sh":
+                market = "cn"
             params["market"] = market
         if full_exchange_name is not None:
             params["full_exchange_name"] = full_exchange_name
@@ -971,6 +1036,8 @@ class AsyncStocks(AsyncAPIResource):
         if return_field_list is not None:
             params["return_field_list"] = return_field_list
         return await self._get("/api/qdata/v1/stock/ystock_info", cast_to=YStockInfoResponse, options={"params": params})
+
+    list = get_ystock_info
 
     async def get_kline(
         self,
@@ -1016,6 +1083,8 @@ class AsyncStocks(AsyncAPIResource):
         if limit is not None:
             params["limit"] = limit
         return await self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
+
+    kline = get_kline
 
     async def get_kline_cs(
         self,
@@ -1183,3 +1252,89 @@ class AsyncStocks(AsyncAPIResource):
         if end is not None:
             params["end"] = end
         return await self._get("/api/qdata/v1/stocks/market-summary", cast_to=StocksMarketSummaryResponse, options={"params": params})
+
+    async def get_event_remind(
+        self,
+        *,
+        symbol: str,
+        page: int | None = None,
+        page_size: int | None = None,
+    ) -> StockEventRemindResponse:
+        """Retrieves important upcoming events to remind for a stock asynchronously.
+
+        Parameters
+        ----------
+        symbol : str
+            Target stock ticker symbol.
+        page : int, optional
+            Page number.
+        page_size : int, optional
+            Number of elements per page.
+        """
+        params: dict[str, Any] = {"symbol": symbol}
+        if page is not None:
+            params["page"] = page
+        if page_size is not None:
+            params["page_size"] = page_size
+        return await self._get("/api/qdata/v1/stock/event_remind", cast_to=StockEventRemindResponse, options={"params": params})
+
+    events = get_event_remind
+
+    async def get_fin_indicators(
+        self,
+        *,
+        symbol: str,
+        report_type: str | None = None,
+        end_date: str | None = None,
+        limit: int | None = None,
+    ) -> StockFinIndicatorsResponse:
+        """Retrieves main financial indicators for a stock asynchronously.
+
+        Parameters
+        ----------
+        symbol : str
+            Target stock ticker symbol.
+        report_type : str, optional
+            Financial report type filter.
+        end_date : str, optional
+            ISO-8601 end date.
+        limit : int, optional
+            Max records.
+        """
+        params: dict[str, Any] = {"symbol": symbol}
+        if report_type is not None:
+            params["report_type"] = report_type
+        if end_date is not None:
+            params["end_date"] = end_date
+        if limit is not None:
+            params["limit"] = limit
+        return await self._get("/api/qdata/v1/stock/fin_indicators", cast_to=StockFinIndicatorsResponse, options={"params": params})
+
+    fin_indicators = get_fin_indicators
+
+    async def get_main_income(
+        self,
+        *,
+        symbol: str,
+        page: int | None = None,
+        page_size: int | None = None,
+    ) -> StockMainIncomeResponse:
+        """Retrieves main business income structure for a stock asynchronously.
+
+        Parameters
+        ----------
+        symbol : str
+            Target stock ticker symbol.
+        page : int, optional
+            Page number.
+        page_size : int, optional
+            Number of elements per page.
+        """
+        params: dict[str, Any] = {"symbol": symbol}
+        if page is not None:
+            params["page"] = page
+        if page_size is not None:
+            params["page_size"] = page_size
+        return await self._get("/api/qdata/v1/stock/main_income", cast_to=StockMainIncomeResponse, options={"params": params})
+
+    main_income = get_main_income

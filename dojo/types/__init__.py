@@ -46,6 +46,12 @@ from dojo.types.models import (
     SectorSymbolRelationListResponse as SectorSymbolRelationListResponse,
     SectorSymbolRelationCreateRequest as SectorSymbolRelationCreateRequest,
     SectorSymbolRelationCreateResponse as SectorSymbolRelationCreateResponse,
+    StockEventRemindResponse as StockEventRemindResponse,
+    StockFinIndicatorsResponse as StockFinIndicatorsResponse,
+    StockMainIncomeResponse as StockMainIncomeResponse,
+    ForexCurrentQuoteResponse as ForexCurrentQuoteResponse,
+    ForexKlineResponse as ForexKlineResponse,
+    ForexSymbolListResponse as ForexSymbolListResponse,
 )
 
 __all__ = [
@@ -96,4 +102,10 @@ __all__ = [
     "SectorSymbolRelationListResponse",
     "SectorSymbolRelationCreateRequest",
     "SectorSymbolRelationCreateResponse",
+    "StockEventRemindResponse",
+    "StockFinIndicatorsResponse",
+    "StockMainIncomeResponse",
+    "ForexCurrentQuoteResponse",
+    "ForexKlineResponse",
+    "ForexSymbolListResponse",
 ]

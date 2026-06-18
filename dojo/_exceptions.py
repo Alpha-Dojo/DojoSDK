@@ -95,3 +95,9 @@ class InternalServerError(APIStatusError):
     """HTTP 500+ Internal Server Error."""
 
     pass
+
+
+class OfflineDataNotAvailableError(DojoError):
+    """Offline data is not available for the requested endpoint or parameters."""
+
+    pass

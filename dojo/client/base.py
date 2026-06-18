@@ -48,11 +48,13 @@ class BaseClient:
         max_retries: int = 1,
         custom_headers: Mapping[str, str] | None = None,
         custom_query: Mapping[str, object] | None = None,
+        return_raw_data: bool = True,
     ) -> None:
         self.base_url = httpx.URL(base_url)
         self.max_retries = max_retries
         self._custom_headers = custom_headers or {}
         self._custom_query = custom_query or {}
+        self.return_raw_data = return_raw_data
 
     @property
     def default_headers(self) -> dict[str, str]:
@@ -149,12 +151,19 @@ class BaseClient:
         if cast_to is None or cast_to is type(None):
             return cast(ResponseT, None)
 
+        # Unwrap QData standard API envelope and check business errors
+        payload = data
+        if isinstance(data, dict) and "code" in data and "data" in data:
+            code = data.get("code")
+            if str(code) not in ("0", "200", "00000", "success"):
+                msg = data.get("msg", data.get("message", f"API business error with code {code}"))
+                raise APIStatusError(f"Business Error: {msg} (code: {code})", response=response, body=data)
+            payload = data["data"]
+
+        if getattr(self, "return_raw_data", True):
+            return cast(ResponseT, payload)
+
         if isinstance(cast_to, type) and issubclass(cast_to, BaseModel):
-            # Unwrap QData standard API envelope
-            if isinstance(data, dict) and "code" in data and "data" in data:
-                payload = data["data"]
-            else:
-                payload = data
 
             # Inspect model fields
             if hasattr(cast_to, "model_fields"):
@@ -218,6 +227,24 @@ class SyncAPIClient(BaseClient):
         headers = {**self.default_headers, **options.get("headers", {})}
         json_data = options.get("json", None)
         timeout = options.get("timeout", httpx.USE_CLIENT_DEFAULT)
+        is_raw = options.get("is_raw", False)
+
+        if not getattr(self, "_online", True) and getattr(self, "_data_source", None) is not None:
+            payload = self._data_source.fetch(
+                method=method,
+                path=path,
+                params=params,
+                json=json_data,
+            )
+            response = httpx.Response(
+                200,
+                json=payload,
+                request=httpx.Request(method, self._prepare_url(path)),
+            )
+            parsed_data = self._process_response(response, cast_to)
+            if is_raw:
+                return cast(ResponseT, APIResponse(response, parsed_data))
+            return parsed_data
 
         url = self._prepare_url(path)
         request = self._client.build_request(
@@ -298,6 +325,21 @@ class AsyncAPIClient(BaseClient):
         headers = {**self.default_headers, **options.get("headers", {})}
         json_data = options.get("json", None)
         timeout = options.get("timeout", httpx.USE_CLIENT_DEFAULT)
+        is_raw = options.get("is_raw", False)
+
+        if not getattr(self, "_online", True) and getattr(self, "_data_source", None) is not None:
+            import functools
+
+            payload = await anyio.to_thread.run_sync(functools.partial(self._data_source.fetch, method=method, path=path, params=params, json=json_data))
+            response = httpx.Response(
+                200,
+                json=payload,
+                request=httpx.Request(method, self._prepare_url(path)),
+            )
+            parsed_data = self._process_response(response, cast_to)
+            if is_raw:
+                return cast(ResponseT, APIResponse(response, parsed_data))
+            return parsed_data
 
         url = self._prepare_url(path)
         request = self._client.build_request(

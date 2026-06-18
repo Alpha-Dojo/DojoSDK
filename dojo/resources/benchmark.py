@@ -56,6 +56,8 @@ class Benchmark(SyncAPIResource):
             params["limit"] = limit
         return self._get("/api/qdata/v1/benchmark/kline", cast_to=BenchmarkKLineResponse, options={"params": params})
 
+    kline = get_kline
+
     def get_price(self, *, symbols: List[str] | None = None) -> BenchmarkPriceResponse:
         """Retrieves last/current price for standard indices benchmarks.
 
@@ -146,6 +148,8 @@ class AsyncBenchmark(AsyncAPIResource):
         if limit is not None:
             params["limit"] = limit
         return await self._get("/api/qdata/v1/benchmark/kline", cast_to=BenchmarkKLineResponse, options={"params": params})
+
+    kline = get_kline
 
     async def get_price(self, *, symbols: List[str] | None = None) -> BenchmarkPriceResponse:
         """Retrieves last/current price for standard indices benchmarks asynchronously.

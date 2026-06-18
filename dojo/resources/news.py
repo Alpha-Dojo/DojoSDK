@@ -155,7 +155,7 @@ class News(SyncAPIResource):
             params["end_time"] = end_time
         if source_type is not None:
             params["source_type"] = source_type
-        return self._get("/api/qdata/v1/stock_event", cast_to=StockEventResponse, options={"params": params})
+        return self._get("/api/qdata/v1/live_news", cast_to=StockEventResponse, options={"params": params})
 
     def get_external_events(
         self,
@@ -380,7 +380,7 @@ class AsyncNews(AsyncAPIResource):
             params["end_time"] = end_time
         if source_type is not None:
             params["source_type"] = source_type
-        return await self._get("/api/qdata/v1/stock_event", cast_to=StockEventResponse, options={"params": params})
+        return await self._get("/api/qdata/v1/live_news", cast_to=StockEventResponse, options={"params": params})
 
     async def get_external_events(
         self,

@@ -40,6 +40,17 @@ async def test_stocks(client):
     await run_safe(client.stocks.get_kline_interval_stat(market="hk", kline_t="1D", window_limit=5))
     await run_safe(client.stocks.get_kline_interval_stat(symbols="AAPL,601318.SS,0700.HK", kline_t="1D", window_limit=22))
     await run_safe(client.stocks.get_stocks_market_summary(symbol="AAPL", limit=10))
+    await run_safe(client.stocks.get_event_remind(symbol="AAPL"))
+    await run_safe(client.stocks.get_fin_indicators(symbol="AAPL"))
+    await run_safe(client.stocks.get_main_income(symbol="AAPL"))
+
+
+@pytest.mark.asyncio
+async def test_forex(client):
+    await run_safe(client.forex.get_symbol_list())
+    await run_safe(client.forex.get_current_quote(symbols="EURUSD,USDJPY"))
+    await run_safe(client.forex.post_current_quote(body={"symbols": "EURUSD,USDJPY"}))
+    await run_safe(client.forex.get_kline(symbol="EURUSD", kline_t="1d", limit=10))
 
 
 @pytest.mark.asyncio

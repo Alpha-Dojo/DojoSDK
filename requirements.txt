@@ -1,2 +1,6 @@
 httpx
 pydantic
+huggingface_hub
+pyarrow
+pandas
+datasets
