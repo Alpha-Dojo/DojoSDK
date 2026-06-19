@@ -30,7 +30,7 @@ class AsyncDojo(AsyncAPIClient):
         *,
         api_key: str | None = None,
         base_url: str | None = None,
-        timeout: Union[float, httpx.Timeout] = 60.0,
+        timeout: Union[float, httpx.Timeout] = 300.0,
         max_retries: int = 1,
         http_client: httpx.AsyncClient | None = None,
         default_headers: Mapping[str, str] | None = None,
@@ -46,7 +46,7 @@ class AsyncDojo(AsyncAPIClient):
             from the DOJO_API_KEY environment variable.
         base_url : str, optional
             The base URL of the Dojo API. Defaults to https://api.flowhale.ai.
-        timeout : float or httpx.Timeout, default 60.0
+        timeout : float or httpx.Timeout, default 300.0
             Maximum time (in seconds) to wait for an HTTP request before timing out.
         max_retries : int, default 1
             Number of times to retry failed requests on connection errors/rate limits.
