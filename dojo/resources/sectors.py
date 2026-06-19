@@ -329,6 +329,8 @@ class AsyncSectors(AsyncAPIResource):
             params["relation_priority"] = relation_priority
         return await self._get("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationListResponse, options={"params": params})
 
+    symbol_relations = get_symbol_relations
+
     async def create_symbol_relations(self, *, body: dict[str, Any]) -> SectorSymbolRelationCreateResponse:
         """Maps symbols to sectors asynchronously.
 

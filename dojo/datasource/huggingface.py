@@ -31,7 +31,7 @@ class HuggingFaceDataSource:
         table = self._load_dataset(spec, merged)
         rows = self._apply_filters(table, spec, merged)
 
-        data: Any = rows if spec.envelope == "list" else (rows[0] if rows else {})
+        data: Any = {"total_num": len(rows), "data": rows} if spec.envelope == "list" else (rows[0] if rows else {})
         return {"code": 0, "message": "ok", "data": data}
 
     def _load_dataset(self, spec: HFEndpointSpec, params: dict[str, Any]):

@@ -101,6 +101,13 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         json_columns=[],
         envelope="list",
     ),
+    "/api/qdata/v1/sector/symbol_relations": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_symbol_relations",
+        path_template="data.parquet",
+        symbol_field="symbol",
+        json_columns=["primary", "secondary"],
+        envelope="list",
+    ),
     "/api/qdata/v1/stocks/news": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_stock_news",
         path_template="data.parquet",
