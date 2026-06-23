@@ -61,7 +61,7 @@ class AsyncDojo(AsyncAPIClient):
             skipping Pydantic model validation.
         """
         from dojo.datasource.config import is_online, HFConfig
-        from dojo.datasource.huggingface import HuggingFaceDataSource
+        from dojo.datasource.huggingface import HuggingFaceKlineDataSource
 
         self._online = is_online()
 
@@ -72,7 +72,7 @@ class AsyncDojo(AsyncAPIClient):
 
         self._data_source = None
         if not self._online:
-            self._data_source = HuggingFaceDataSource(HFConfig.from_env())
+            self._data_source = HuggingFaceKlineDataSource(HFConfig.from_env())
 
         base_url = base_url or os.environ.get("DOJO_BASE_URL") or "https://api.flowhale.ai"
 
@@ -121,6 +121,24 @@ class AsyncDojo(AsyncAPIClient):
         """Stops the background dataset refresh thread."""
         if self._data_source is not None and hasattr(self._data_source, "stop_background_sync"):
             self._data_source.stop_background_sync()
+
+    async def preload_offline_data(self, paths: list[str] | None = None) -> None:
+        """Preload specific offline data resources into memory to avoid latency on first request."""
+        if self._data_source is not None and hasattr(self._data_source, "preload"):
+            import asyncio
+
+            if paths is None:
+                from dojo.datasource.registry import HF_REGISTRY
+
+                paths = list(HF_REGISTRY.keys())
+            await asyncio.to_thread(self._data_source.preload, paths)
+
+    async def upload_dataset(self, dataset_name: str, local_folder: str, token: str | None = None) -> None:
+        """Uploads a local folder as a dataset to HuggingFace Hub using a background thread."""
+        import asyncio
+        from dojo.datasource.upload import upload_dataset as sync_upload_dataset
+
+        await asyncio.to_thread(sync_upload_dataset, dataset_name, local_folder, token)
 
     @cached_property
     def stocks(self) -> AsyncStocks:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any, List, Dict
 from dojo.resources.base import SyncAPIResource, AsyncAPIResource
 from dojo.types.models import (
     CompetitorsResponse,
@@ -13,6 +13,7 @@ from dojo.types.models import (
     StockSentimentResponse,
     YStockInfoResponse,
     StockKlineResponse,
+    StockKlineResponseItem,
     StockKlineCSResponse,
     StockMarketSummaryResponse,
     StockSectorIndustrySummaryResponse,
@@ -427,6 +428,32 @@ class Stocks(SyncAPIResource):
         return self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
 
     kline = get_kline
+
+    def get_all_klines(self, *, symbols: List[str] | None = None) -> Dict[str, List[StockKlineResponseItem]]:
+        """Retrieves offline stock K-line data.
+
+        This method is only available in offline mode.
+        If `symbols` is provided, it filters the data. Otherwise, it returns the complete dataset.
+        Returns a dictionary grouping the data by symbol.
+        """
+        if getattr(self._client, "_online", True):
+            from dojo._exceptions import DojoError
+
+            raise DojoError("get_all_klines is only available in offline mode.")
+
+        params = {}
+        if symbols:
+            params["symbol"] = ",".join(symbols)
+
+        response = self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
+
+        from collections import defaultdict
+
+        grouped = defaultdict(list)
+        for item in response.klines:
+            grouped[item.symbol].append(item)
+
+        return dict(grouped)
 
     def get_kline_cs(
         self,
@@ -1085,6 +1112,32 @@ class AsyncStocks(AsyncAPIResource):
         return await self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
 
     kline = get_kline
+
+    async def get_all_klines(self, *, symbols: List[str] | None = None) -> Dict[str, List[StockKlineResponseItem]]:
+        """Retrieves offline stock K-line data asynchronously.
+
+        This method is only available in offline mode.
+        If `symbols` is provided, it filters the data. Otherwise, it returns the complete dataset.
+        Returns a dictionary grouping the data by symbol.
+        """
+        if getattr(self._client, "_online", True):
+            from dojo._exceptions import DojoError
+
+            raise DojoError("get_all_klines is only available in offline mode.")
+
+        params = {}
+        if symbols:
+            params["symbol"] = ",".join(symbols)
+
+        response = await self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
+
+        from collections import defaultdict
+
+        grouped = defaultdict(list)
+        for item in response.klines:
+            grouped[item.symbol].append(item)
+
+        return dict(grouped)
 
     async def get_kline_cs(
         self,

@@ -115,6 +115,24 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         json_columns=["tickers", "keywords", "insights", "publisher"],
         envelope="list",
     ),
+    "/api/qdata/v1/sector/precomputed/constituents": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="constituents.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/sector/precomputed/sector_daily": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="sector_daily.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/sector/precomputed/ticker_daily": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="ticker_daily.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
     # Additional endpoints can be added here
 }
 

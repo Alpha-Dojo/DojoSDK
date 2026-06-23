@@ -34,4 +34,4 @@ class HFConfig:
 
 def is_online() -> bool:
     """Global switch: True (online) by default."""
-    return _env_bool("DOJO_ONLINE", True)
+    return _env_bool("DOJO_ONLINE", False)

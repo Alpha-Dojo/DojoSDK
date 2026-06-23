@@ -14,7 +14,6 @@ class HuggingFaceDataSource:
 
         self._cfg = config or HFConfig.from_env()
         self._table_cache: dict[str, Any] = {}
-        self._cache_lock = threading.Lock()
         self._bg_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
@@ -69,9 +68,8 @@ class HuggingFaceDataSource:
                 fb = self._render_template(spec.fallback_template, params)
                 cache_key_fb = f"{spec.repo_id}/{fb}"
 
-                with self._cache_lock:
-                    if cache_key_fb in self._table_cache:
-                        return self._table_cache[cache_key_fb]
+                if cache_key_fb in self._table_cache:
+                    return self._table_cache[cache_key_fb]
 
                 logger.warning(f"Failed to fetch main file {relative}, falling back to {fb}: {err}")
                 try:
@@ -228,8 +226,7 @@ class HuggingFaceDataSource:
                     split="train",
                     download_mode="force_redownload",
                 )
-                with self._cache_lock:
-                    self._table_cache[cache_key] = ds.data.table
+                self._table_cache[cache_key] = ds.data.table
                 logger.info(f"Successfully refreshed {cache_key}")
             except Exception as e:
                 logger.warning(f"Failed to background refresh {cache_key}: {e}")
@@ -263,3 +260,135 @@ class HuggingFaceDataSource:
             self._stop_event.set()
             self._bg_thread.join(timeout=2.0)
             logger.info("Stopped background sync thread.")
+
+    def preload(self, paths: list[str]) -> None:
+        """Preload specific resources into cache ahead of time."""
+        from dojo.datasource.registry import resolve
+
+        for path in paths:
+            spec = resolve(path)
+            if not spec:
+                logger.warning(f"Cannot preload {path}: endpoint not registered.")
+                continue
+            try:
+                self._load_dataset(spec, {})
+                logger.info(f"Preloaded dataset for {path}")
+            except Exception as e:
+                logger.warning(f"Failed to preload {path}: {e}")
+
+
+class HuggingFaceKlineDataSource(HuggingFaceDataSource):
+    """
+    A specialized HuggingFaceDataSource that pre-groups kline data by symbol
+    for O(1) fetch performance during offline simulation.
+    """
+
+    def __init__(self, config: HFConfig | None = None) -> None:
+        super().__init__(config)
+        self._grouped_cache: dict[str, dict[str, list[dict]]] = {}
+
+    def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
+        spec = resolve(path)
+        if not spec:
+            raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
+
+        if spec.symbol_field and spec.symbol_param in params and path.endswith("/kline"):
+            return self._fast_fetch_kline(path, spec, params, json)
+
+        return super().fetch(method=method, path=path, params=params, json=json)
+
+    def preload(self, paths: list[str]) -> None:
+        super().preload(paths)
+        from dojo.datasource.registry import resolve
+
+        for path in paths:
+            if not path.endswith("/kline"):
+                continue
+            spec = resolve(path)
+            if not spec:
+                continue
+
+            try:
+                table = self._load_dataset(spec, {})
+                cache_key = f"{spec.repo_id}/{self._render_template(spec.path_template, {})}"
+                if cache_key not in self._grouped_cache:
+                    logger.info(f"Pre-grouping kline data for {cache_key}...")
+                    self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
+                    logger.info(f"Pre-grouping complete for {cache_key}.")
+            except Exception as e:
+                logger.warning(f"Failed to pre-group {path}: {e}")
+
+    def _fast_fetch_kline(self, path: str, spec: Any, params: dict[str, Any], json_body: Any | None) -> Any:
+        merged = dict(params)
+        if isinstance(json_body, dict):
+            merged.update(json_body)
+
+        # 1. Ensure the underlying dataset is loaded and cached
+        table = self._load_dataset(spec, merged)
+        cache_key = f"{spec.repo_id}/{self._render_template(spec.path_template, merged)}"
+
+        # 2. Pre-group data if not already done
+        if cache_key not in self._grouped_cache:
+            self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
+
+        grouped_data = self._grouped_cache[cache_key]
+
+        # 3. Resolve requested symbols
+        symbols = merged.get(spec.symbol_param, "")
+        if isinstance(symbols, str):
+            symbols = symbols.split(",") if "," in symbols else [symbols]
+        elif not isinstance(symbols, (list, tuple, set)):
+            symbols = [symbols]
+
+        # 4. O(1) Fast fetch
+        limit = merged.get(spec.limit_param)
+        results = []
+        for sym in symbols:
+            if not sym:
+                continue
+            sym_rows = grouped_data.get(sym, [])
+            if isinstance(limit, int) and limit > 0:
+                sym_rows = sym_rows[:limit]
+            results.extend(sym_rows)
+
+        data: Any = {"total_num": len(results), "data": results} if spec.envelope == "list" else (results[0] if results else {})
+        return {"code": 0, "message": "ok", "data": data}
+
+    def _build_grouped_data(self, table, spec) -> dict[str, list[dict]]:
+        import datetime
+        import json
+        from collections import defaultdict
+
+        rows = table.to_pylist()
+
+        json_cols = spec.json_columns or []
+        if not json_cols and table.schema.metadata and b"dojosdk:json_columns" in table.schema.metadata:
+            json_cols = table.schema.metadata[b"dojosdk:json_columns"].decode("utf-8").split(",")
+
+        json_cols_set = set(json_cols)
+
+        for row in rows:
+            for col in json_cols_set:
+                val = row.get(col)
+                if isinstance(val, str):
+                    try:
+                        row[col] = json.loads(val)
+                    except json.JSONDecodeError:
+                        pass
+
+            for k, v in row.items():
+                if isinstance(v, (datetime.datetime, datetime.date)):
+                    row[k] = v.isoformat()
+
+        grouped = defaultdict(list)
+        sym_field = spec.symbol_field
+        for row in rows:
+            sym = row.get(sym_field)
+            if sym is not None:
+                grouped[sym].append(row)
+
+        if spec.time_field:
+            for sym, sym_rows in grouped.items():
+                sym_rows.sort(key=lambda x: x.get(spec.time_field, ""), reverse=spec.order_desc)
+
+        return dict(grouped)

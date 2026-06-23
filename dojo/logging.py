@@ -4,7 +4,7 @@ import sys
 LOG_FORMAT = "[%(asctime)s.%(msecs)d][%(levelname)s][%(processName)s][%(process)d][%(threadName)s][%(name)s][%(pathname)s:%(lineno)s - %(funcName)s()] %(message)s"
 
 logger = logging.getLogger("dojosdk")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.propagate = False
 
 if not logger.handlers:
