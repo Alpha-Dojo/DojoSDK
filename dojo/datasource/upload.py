@@ -34,3 +34,30 @@ def upload_dataset(dataset_name: str, local_folder: str | Path, token: str | Non
         pass
 
     api.upload_folder(folder_path=str(local_folder), repo_id=repo_id, repo_type="dataset")
+
+
+def download_dataset(dataset_name: str, local_folder: str | Path, token: str | None = None) -> None:
+    """Downloads a dataset from HuggingFace Hub to a local folder.
+
+    Parameters
+    ----------
+    dataset_name : str
+        The name of the dataset to download (e.g. 'dojo_sector_precomputed').
+        It will be mapped to the AlphaDojo organization automatically.
+    local_folder : str | Path
+        The path to the local folder where the dataset should be downloaded.
+    token : str | None
+        HuggingFace token. If None, it attempts to use the HF_TOKEN environment variable.
+    """
+    token = token or os.environ.get("HF_TOKEN")
+    from huggingface_hub import snapshot_download
+
+    repo_id = f"AlphaDojo/{dataset_name}"
+    os.makedirs(local_folder, exist_ok=True)
+
+    snapshot_download(
+        repo_id=repo_id,
+        repo_type="dataset",
+        local_dir=str(local_folder),
+        token=token,
+    )

@@ -140,6 +140,13 @@ class AsyncDojo(AsyncAPIClient):
 
         await asyncio.to_thread(sync_upload_dataset, dataset_name, local_folder, token)
 
+    async def download_dataset(self, dataset_name: str, local_folder: str, token: str | None = None) -> None:
+        """Downloads a dataset from HuggingFace Hub to a local folder using a background thread."""
+        import asyncio
+        from dojo.datasource.upload import download_dataset as sync_download_dataset
+
+        await asyncio.to_thread(sync_download_dataset, dataset_name, local_folder, token)
+
     @cached_property
     def stocks(self) -> AsyncStocks:
         """Access the stocks resource namespace for stock quotes, fundamentals, news, and metrics."""

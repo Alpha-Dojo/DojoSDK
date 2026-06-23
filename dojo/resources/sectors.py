@@ -9,6 +9,10 @@ from dojo.types.models import (
     SectorInfoCreateResponse,
     SectorSymbolRelationListResponse,
     SectorSymbolRelationCreateResponse,
+    SectorPrecomputedConstituentsResponse,
+    SectorPrecomputedDailyResponse,
+    SectorPrecomputedManifestResponse,
+    SectorPrecomputedTickerDailyResponse,
 )
 
 
@@ -175,6 +179,22 @@ class Sectors(SyncAPIResource):
         """
         return self._post("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationCreateResponse, options={"json": body})
 
+    def get_precomputed_constituents(self) -> SectorPrecomputedConstituentsResponse:
+        """Retrieves statically precomputed sector constituents."""
+        return self._get("/api/qdata/v1/sector/precomputed/constituents", cast_to=SectorPrecomputedConstituentsResponse)
+
+    def get_precomputed_sector_daily(self) -> SectorPrecomputedDailyResponse:
+        """Retrieves statically precomputed daily sector performance."""
+        return self._get("/api/qdata/v1/sector/precomputed/sector_daily", cast_to=SectorPrecomputedDailyResponse)
+
+    def get_precomputed_ticker_daily(self) -> SectorPrecomputedTickerDailyResponse:
+        """Retrieves statically precomputed daily ticker performance."""
+        return self._get("/api/qdata/v1/sector/precomputed/ticker_daily", cast_to=SectorPrecomputedTickerDailyResponse)
+
+    def get_precomputed_manifest(self) -> SectorPrecomputedManifestResponse:
+        """Retrieves sector precomputed snapshot manifest metadata."""
+        return self._get("/api/qdata/v1/sector/precomputed/manifest", cast_to=SectorPrecomputedManifestResponse)
+
 
 class AsyncSectors(AsyncAPIResource):
 
@@ -340,3 +360,19 @@ class AsyncSectors(AsyncAPIResource):
             Request body containing symbol mappings.
         """
         return await self._post("/api/qdata/v1/sector/symbol_relations", cast_to=SectorSymbolRelationCreateResponse, options={"json": body})
+
+    async def get_precomputed_constituents(self) -> SectorPrecomputedConstituentsResponse:
+        """Retrieves statically precomputed sector constituents asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/constituents", cast_to=SectorPrecomputedConstituentsResponse)
+
+    async def get_precomputed_sector_daily(self) -> SectorPrecomputedDailyResponse:
+        """Retrieves statically precomputed daily sector performance asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/sector_daily", cast_to=SectorPrecomputedDailyResponse)
+
+    async def get_precomputed_ticker_daily(self) -> SectorPrecomputedTickerDailyResponse:
+        """Retrieves statically precomputed daily ticker performance asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/ticker_daily", cast_to=SectorPrecomputedTickerDailyResponse)
+
+    async def get_precomputed_manifest(self) -> SectorPrecomputedManifestResponse:
+        """Retrieves sector precomputed snapshot manifest metadata asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/manifest", cast_to=SectorPrecomputedManifestResponse)

@@ -432,20 +432,17 @@ class Stocks(SyncAPIResource):
     def get_all_klines(self, *, symbols: List[str] | None = None) -> Dict[str, List[StockKlineResponseItem]]:
         """Retrieves offline stock K-line data.
 
-        This method is only available in offline mode.
+        This method fetches directly from the offline dataset.
         If `symbols` is provided, it filters the data. Otherwise, it returns the complete dataset.
         Returns a dictionary grouping the data by symbol.
         """
-        if getattr(self._client, "_online", True):
-            from dojo._exceptions import DojoError
-
-            raise DojoError("get_all_klines is only available in offline mode.")
-
         params = {}
         if symbols:
             params["symbol"] = ",".join(symbols)
 
-        response = self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
+        # Force offline fetch
+        raw_response = self._client._data_source.fetch(method="GET", path="/api/qdata/v1/stock/kline", params=params)["data"]
+        response = StockKlineResponse.model_validate(raw_response)
 
         from collections import defaultdict
 
@@ -1116,26 +1113,25 @@ class AsyncStocks(AsyncAPIResource):
     async def get_all_klines(self, *, symbols: List[str] | None = None) -> Dict[str, List[StockKlineResponseItem]]:
         """Retrieves offline stock K-line data asynchronously.
 
-        This method is only available in offline mode.
+        This method fetches directly from the offline dataset.
         If `symbols` is provided, it filters the data. Otherwise, it returns the complete dataset.
         Returns a dictionary grouping the data by symbol.
         """
-        if getattr(self._client, "_online", True):
-            from dojo._exceptions import DojoError
-
-            raise DojoError("get_all_klines is only available in offline mode.")
-
         params = {}
         if symbols:
             params["symbol"] = ",".join(symbols)
 
-        response = await self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
+        # Force offline fetch
+        import asyncio
+
+        raw_response = await asyncio.to_thread(self._client._data_source.fetch, method="GET", path="/api/qdata/v1/stock/kline", params=params)
+        response = raw_response["data"]
 
         from collections import defaultdict
 
         grouped = defaultdict(list)
-        for item in response.klines:
-            grouped[item.symbol].append(item)
+        for item in response["data"]:
+            grouped[item["symbol"]].append(item)
 
         return dict(grouped)
 

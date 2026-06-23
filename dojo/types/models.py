@@ -321,12 +321,12 @@ class StockKlineResponseItem(DojoModel):
 
 class StockKlineResponse(DojoModel):
     total_num: int
-    klines: List[StockKlineResponseItem]
+    data: List[StockKlineResponseItem]
 
 
 class StockKlineCSResponse(DojoModel):
     total_num: int
-    klines: List[Dict[str, Any]]
+    data: List[Dict[str, Any]]
 
 
 class StockMarketSummaryResponse(DojoModel):
@@ -382,3 +382,23 @@ class ForexKlineResponse(DojoModel):
 
 class ForexSymbolListResponse(DojoModel):
     symbols: List[Dict[str, Any]] | None = None
+
+
+# --- Sector Precomputed ---
+class SectorPrecomputedConstituentsResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorPrecomputedDailyResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorPrecomputedTickerDailyResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorPrecomputedManifestResponse(DojoModel):
+    data: Dict[str, Any] | None = None

@@ -133,6 +133,12 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         json_columns=[],
         envelope="list",
     ),
+    "/api/qdata/v1/sector/precomputed/manifest": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="manifest.json",
+        json_columns=[],
+        envelope="dict",
+    ),
     # Additional endpoints can be added here
 }
 
