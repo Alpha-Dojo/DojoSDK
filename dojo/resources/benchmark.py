@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, List
 from dojo.resources.base import SyncAPIResource, AsyncAPIResource
 from dojo.types.models import (
+    BenchmarkCatalogResponse,
     BenchmarkKLineResponse,
     BenchmarkPriceResponse,
     BenchmarkPerformanceResponse,
@@ -101,6 +102,10 @@ class Benchmark(SyncAPIResource):
             params["limit"] = limit
         return self._get("/api/qdata/v1/benchmark/performance", cast_to=BenchmarkPerformanceResponse, options={"params": params})
 
+    def get_catalog(self) -> BenchmarkCatalogResponse:
+        """Retrieves benchmark catalog metadata used for default selection and labels."""
+        return self._get("/api/qdata/v1/benchmark/catalog", cast_to=BenchmarkCatalogResponse)
+
 
 class AsyncBenchmark(AsyncAPIResource):
 
@@ -193,3 +198,7 @@ class AsyncBenchmark(AsyncAPIResource):
         if limit is not None:
             params["limit"] = limit
         return await self._get("/api/qdata/v1/benchmark/performance", cast_to=BenchmarkPerformanceResponse, options={"params": params})
+
+    async def get_catalog(self) -> BenchmarkCatalogResponse:
+        """Retrieves benchmark catalog metadata used for default selection and labels asynchronously."""
+        return await self._get("/api/qdata/v1/benchmark/catalog", cast_to=BenchmarkCatalogResponse)

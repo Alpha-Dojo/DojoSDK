@@ -45,6 +45,7 @@ class HuggingFaceDataSource:
         cache_key = f"{spec.repo_id}/{relative}"
 
         if cache_key in self._table_cache:
+            self._warm_companion_files(spec, params)
             return self._table_cache[cache_key]
 
         # Enforce strict offline mode if local_only is set
@@ -62,6 +63,7 @@ class HuggingFaceDataSource:
             )
             table = ds.data.table
             self._table_cache[cache_key] = table
+            self._warm_companion_files(spec, params)
             return table
         except Exception as err:
             if spec.fallback_template:
@@ -83,10 +85,43 @@ class HuggingFaceDataSource:
                     )
                     table = ds.data.table
                     self._table_cache[cache_key_fb] = table
+                    self._warm_companion_files(spec, params)
                     return table
                 except Exception as fb_err:
                     raise OfflineDataNotAvailableError(f"Cannot fetch offline file {spec.repo_id}/{fb}: {fb_err}") from fb_err
             raise OfflineDataNotAvailableError(f"Cannot fetch offline file {spec.repo_id}/{relative}: {err}") from err
+
+    def _warm_companion_files(self, spec: HFEndpointSpec, params: dict[str, Any]) -> None:
+        for template in spec.companion_files:
+            try:
+                self._load_companion_dataset(spec.repo_id, template, params)
+            except Exception as err:
+                logger.warning(f"Failed to warm companion file {spec.repo_id}/{template}: {err}")
+
+    def _load_companion_dataset(self, repo_id: str, template: str, params: dict[str, Any]):
+        try:
+            from datasets import load_dataset
+        except ImportError:
+            raise OfflineDataNotAvailableError("Offline huggingface data source requires 'datasets' and 'pyarrow'. " "Install with `pip install dojosdk[huggingface]`.")
+
+        import os
+
+        relative = self._render_template(template, params)
+        cache_key = f"{repo_id}/{relative}"
+        if cache_key in self._table_cache:
+            return self._table_cache[cache_key]
+
+        ds = load_dataset(
+            repo_id,
+            data_files=relative,
+            revision=self._cfg.revision,
+            token=self._cfg.token,
+            cache_dir=os.path.join(self._cfg.cache_dir, "datasets"),
+            split="train",
+        )
+        table = ds.data.table
+        self._table_cache[cache_key] = table
+        return table
 
     @staticmethod
     def _render_template(template: str, params: dict[str, Any]) -> str:
@@ -227,6 +262,7 @@ class HuggingFaceDataSource:
                     download_mode="force_redownload",
                 )
                 self._table_cache[cache_key] = ds.data.table
+                self._warm_companion_files(spec, {})
                 logger.info(f"Successfully refreshed {cache_key}")
             except Exception as e:
                 logger.warning(f"Failed to background refresh {cache_key}: {e}")
@@ -309,11 +345,11 @@ class HuggingFaceKlineDataSource(HuggingFaceDataSource):
                 continue
 
             try:
-                table = self._load_dataset(spec, {})
+                # table = self._load_dataset(spec, {})
                 cache_key = f"{spec.repo_id}/{self._render_template(spec.path_template, {})}"
                 if cache_key not in self._grouped_cache:
                     logger.info(f"Pre-grouping kline data for {cache_key}...")
-                    self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
+                    # self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
                     logger.info(f"Pre-grouping complete for {cache_key}.")
             except Exception as e:
                 logger.warning(f"Failed to pre-group {path}: {e}")

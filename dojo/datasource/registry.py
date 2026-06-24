@@ -16,6 +16,10 @@ class HFEndpointSpec:
     # Fallback template if specific dimension might be missing
     fallback_template: str | None = None
 
+    # Additional files that should be warmed into cache for this endpoint.
+    # These files may use a different schema and are not filtered as the main table.
+    companion_files: tuple[str, ...] = ()
+
     # Filtering dimensions
     time_field: str | None = None
     start_param: str = "start_time"
@@ -40,7 +44,14 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
     "/api/qdata/v1/benchmark/kline": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_benchmark_kline",
         path_template="data.parquet",
+        companion_files=("benchmark.parquet",),
         symbol_field="symbol",
+        json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/benchmark/catalog": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_benchmark_kline",
+        path_template="benchmark.parquet",
         json_columns=[],
         envelope="list",
     ),

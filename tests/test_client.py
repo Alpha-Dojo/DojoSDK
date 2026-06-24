@@ -78,6 +78,7 @@ async def test_benchmark(client):
     await run_safe(client.benchmark.get_kline(symbol="SPY"))
     await run_safe(client.benchmark.get_price(symbols=["SPY"]))
     await run_safe(client.benchmark.get_performance(symbol="SPY"))
+    await run_safe(client.benchmark.get_catalog())
 
 
 @pytest.mark.asyncio

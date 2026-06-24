@@ -172,6 +172,11 @@ class BenchmarkPerformanceResponse(DojoModel):
     performance: List[Dict[str, Any]]
 
 
+class BenchmarkCatalogResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
 # --- Concepts ---
 class ConceptInfoResponse(DojoModel):
     concepts: List[Dict[str, Any]]
