@@ -38,6 +38,7 @@ def pandas_to_parquet_with_metadata(df: Any, path_or_buf: Any, **kwargs) -> None
             # Convert to JSON string
             df[col] = df[col].apply(lambda x: json.dumps(x, ensure_ascii=False) if isinstance(x, (dict, list)) else x)
 
+    df = df.reset_index(drop=True)
     # Convert to PyArrow Table
     table = pa.Table.from_pandas(df)
 

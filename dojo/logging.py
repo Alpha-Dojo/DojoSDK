@@ -1,10 +1,12 @@
 import logging
 import sys
+import os
 
 LOG_FORMAT = "[%(asctime)s.%(msecs)d][%(levelname)s][%(processName)s][%(process)d][%(threadName)s][%(name)s][%(pathname)s:%(lineno)s - %(funcName)s()] %(message)s"
 
 logger = logging.getLogger("dojosdk")
-logger.setLevel(logging.INFO)
+log_level = os.environ.get("DOJO_LOG_LEVEL", "INFO").upper()
+logger.setLevel(getattr(logging, log_level, logging.INFO))
 logger.propagate = False
 
 if not logger.handlers:

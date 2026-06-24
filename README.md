@@ -5,7 +5,7 @@ Official Python client SDK for the Dojo API.
 ## Installation
 
 ```bash
-pip install dojosdk-0.1.0-py3-none-any.whl
+pip install dojosdk
 ```
 
 ## Quick Start
@@ -31,3 +31,18 @@ When integrating DojoSDK with Hugging Face Datasets (e.g., for automated data sy
 export HF_TOKEN="hf_your_access_token_here"
 ```
 Alternatively, you can skip configuring this variable if your environment is already authenticated locally via `huggingface-cli login`.
+
+## Hugging Face Cache Management
+
+DojoSDK automatically caches offline data downloaded from Hugging Face. To free up disk space by deleting older revisions and keeping only the latest version of the cached data, use the `cleanup_cache` method:
+
+```python
+from dojo.datasource.huggingface import HuggingFaceDataSource
+
+ds = HuggingFaceDataSource()
+result = ds.cleanup_cache()
+
+# Expected output format:
+# {'freed_space': '3.0GB', 'details': {'AlphaDojo/dojo_stock_kline': '772.9M', ...}, 'message': 'Cache cleanup complete.'}
+print(result)
+```

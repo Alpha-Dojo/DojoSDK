@@ -9,11 +9,12 @@ from dojo.logging import logger
 
 
 class HuggingFaceDataSource:
+    _table_cache: dict[str, Any] = {}
+
     def __init__(self, config: HFConfig | None = None) -> None:
         import threading
 
         self._cfg = config or HFConfig.from_env()
-        self._table_cache: dict[str, Any] = {}
         self._bg_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
@@ -258,8 +259,8 @@ class HuggingFaceDataSource:
                     revision=self._cfg.revision,
                     token=self._cfg.token,
                     cache_dir=os.path.join(self._cfg.cache_dir, "datasets"),
-                    split="train",
                     download_mode="force_redownload",
+                    split="train",
                 )
                 self._table_cache[cache_key] = ds.data.table
                 self._warm_companion_files(spec, {})
@@ -300,17 +301,78 @@ class HuggingFaceDataSource:
     def preload(self, paths: list[str]) -> None:
         """Preload specific resources into cache ahead of time."""
         from dojo.datasource.registry import resolve
+        from tqdm import tqdm
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        for path in paths:
-            spec = resolve(path)
+        total = len(paths)
+        if total == 0:
+            return
+
+        specs = [(i, path, resolve(path)) for i, path in enumerate(paths, start=1)]
+        valid_specs = [(i, p, s) for i, p, s in specs if s]
+
+        for i, path, spec in specs:
             if not spec:
-                logger.warning(f"Cannot preload {path}: endpoint not registered.")
-                continue
+                logger.warning(f"[{i}/{total}] Cannot preload {path}: endpoint not registered.")
+
+        def _do_preload(i, path, spec):
             try:
+                logger.info(f"[{i}/{total}] 开始预加载 {path} ...")
                 self._load_dataset(spec, {})
-                logger.info(f"Preloaded dataset for {path}")
+                logger.info(f"[{i}/{total}] 成功预加载 {path}")
             except Exception as e:
-                logger.warning(f"Failed to preload {path}: {e}")
+                logger.error(f"[{i}/{total}] 预加载 {path} 失败: {e}")
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(_do_preload, i, path, spec) for i, path, spec in valid_specs]
+            for _ in tqdm(as_completed(futures), total=len(futures), desc="Preloading DojoSDK data"):
+                pass
+
+    def cleanup_cache(self) -> dict:
+        """
+        Scans the Hugging Face local cache directory and deletes all revisions
+        except the latest one for each repository.
+        Returns a dictionary summarizing the freed space.
+        """
+        try:
+            from huggingface_hub import scan_cache_dir
+        except ImportError:
+            logger.error("Cache cleanup requires 'huggingface_hub'.")
+            return {"error": "huggingface_hub is not installed"}
+
+        # Scan the default HF cache directory
+        cache_info = scan_cache_dir()
+        freed_summary = {}
+        total_freed_bytes = 0
+
+        for repo in cache_info.repos:
+            if len(repo.revisions) <= 1:
+                continue
+
+            # Sort revisions by last_modified descending (newest first)
+            sorted_revisions = sorted(repo.revisions, key=lambda r: r.last_modified, reverse=True)
+
+            # Keep the newest, delete the rest
+            older_revisions = [rev.commit_hash for rev in sorted_revisions[1:]]
+
+            if older_revisions:
+                strategy = cache_info.delete_revisions(*older_revisions)
+                expected_freed = strategy.expected_freed_size
+                strategy.execute()
+                freed_summary[repo.repo_id] = strategy.expected_freed_size_str
+                total_freed_bytes += expected_freed
+                logger.info(f"Cleaned up {len(older_revisions)} older revisions for {repo.repo_id}, freed {strategy.expected_freed_size_str}")
+
+        def format_bytes(size):
+            for unit in ["B", "KB", "MB", "GB", "TB"]:
+                if size < 1024.0:
+                    return f"{size:.1f}{unit}"
+                size /= 1024.0
+            return f"{size:.1f}PB"
+
+        result = {"freed_space": format_bytes(total_freed_bytes), "details": freed_summary, "message": "Cache cleanup complete."}
+        logger.info(f"Cache cleanup complete. Total freed: {result['freed_space']}")
+        return result
 
 
 class HuggingFaceKlineDataSource(HuggingFaceDataSource):
@@ -328,31 +390,40 @@ class HuggingFaceKlineDataSource(HuggingFaceDataSource):
         if not spec:
             raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
 
-        if spec.symbol_field and spec.symbol_param in params and path.endswith("/kline"):
-            return self._fast_fetch_kline(path, spec, params, json)
+        # if spec.symbol_field and spec.symbol_param in params and path.endswith("/kline"):
+        #     return self._fast_fetch_kline(path, spec, params, json)
 
         return super().fetch(method=method, path=path, params=params, json=json)
 
     def preload(self, paths: list[str]) -> None:
         super().preload(paths)
         from dojo.datasource.registry import resolve
+        from tqdm import tqdm
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        for path in paths:
-            if not path.endswith("/kline"):
-                continue
-            spec = resolve(path)
-            if not spec:
-                continue
+        kline_paths = [p for p in paths if p.endswith("/kline")]
+        if not kline_paths:
+            return
 
+        total = len(kline_paths)
+        specs = [(i, path, resolve(path)) for i, path in enumerate(kline_paths, start=1)]
+        valid_specs = [(i, p, s) for i, p, s in specs if s]
+
+        def _do_pregroup(i, path, spec):
             try:
                 # table = self._load_dataset(spec, {})
                 cache_key = f"{spec.repo_id}/{self._render_template(spec.path_template, {})}"
                 if cache_key not in self._grouped_cache:
-                    logger.info(f"Pre-grouping kline data for {cache_key}...")
+                    logger.info(f"[{i}/{total}] 开始 Pre-grouping kline data for {cache_key} ...")
                     # self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
-                    logger.info(f"Pre-grouping complete for {cache_key}.")
+                    logger.info(f"[{i}/{total}] 成功 Pre-grouping kline data for {cache_key}.")
             except Exception as e:
-                logger.warning(f"Failed to pre-group {path}: {e}")
+                logger.error(f"[{i}/{total}] Pre-grouping {path} 失败: {e}")
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(_do_pregroup, i, path, spec) for i, path, spec in valid_specs]
+            for _ in tqdm(as_completed(futures), total=len(futures), desc="Pre-grouping Kline data"):
+                pass
 
     def _fast_fetch_kline(self, path: str, spec: Any, params: dict[str, Any], json_body: Any | None) -> Any:
         merged = dict(params)
