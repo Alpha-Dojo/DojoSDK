@@ -16,3 +16,12 @@ class DataSource(Protocol):
     ) -> Any:
         """Returns a dictionary shaped like {"code":0, "data":[...]}, or bare list/dict."""
         ...
+
+    def fetch_df(
+        self,
+        *,
+        path: str,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """Returns a Pandas DataFrame. Currently only fully supported by HuggingFace offline datasource."""
+        ...

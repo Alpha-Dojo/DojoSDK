@@ -10,6 +10,7 @@ from dojo.logging import logger
 
 class HuggingFaceDataSource:
     _table_cache: dict[str, Any] = {}
+    _df_cache: dict[str, Any] = {}
 
     def __init__(self, config: HFConfig | None = None) -> None:
         import threading
@@ -33,6 +34,36 @@ class HuggingFaceDataSource:
 
         data: Any = {"total_num": len(rows), "data": rows} if spec.envelope == "list" else (rows[0] if rows else {})
         return {"code": 0, "message": "ok", "data": data}
+
+    def fetch_df(self, *, path: str, params: dict[str, Any] | None = None) -> Any:
+        params = params or {}
+        spec = resolve(path)
+        if spec is None:
+            raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
+
+        relative = self._render_template(spec.path_template, params)
+        cache_key = f"{spec.repo_id}/{relative}"
+
+        if cache_key in self._df_cache:
+            return self._df_cache[cache_key]
+
+        try:
+            import pandas as pd
+            from huggingface_hub import hf_hub_download
+        except ImportError:
+            raise ImportError("pandas and huggingface_hub are required for fetch_df")
+
+        local_path = hf_hub_download(
+            repo_id=spec.repo_id,
+            filename=relative,
+            repo_type="dataset",
+            token=self._cfg.token,
+            revision=self._cfg.revision,
+        )
+
+        df = pd.read_parquet(local_path)
+        self._df_cache[cache_key] = df
+        return df
 
     def _load_dataset(self, spec: HFEndpointSpec, params: dict[str, Any]):
         try:

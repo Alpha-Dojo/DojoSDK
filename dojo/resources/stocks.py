@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Any, List, Dict
 import pandas as pd
-
 from dojo.resources.base import SyncAPIResource, AsyncAPIResource
 from dojo.types.models import (
     CompetitorsResponse,
@@ -449,31 +448,9 @@ class Stocks(SyncAPIResource):
     def get_all_klines_with_df(self) -> "pd.DataFrame":  # type: ignore
         """Retrieves offline stock K-line data directly as a pandas DataFrame.
 
-        This method fetches the local path to data.parquet using huggingface_hub
-        and reads it directly into a pandas DataFrame.
+        This method leverages the data source to fetch and cache a Pandas DataFrame.
         """
-        try:
-            import pandas as pd
-            from huggingface_hub import hf_hub_download
-        except ImportError:
-            raise ImportError("pandas and huggingface_hub are required for get_all_klines_with_df")
-
-        token = None
-        revision = None
-        if hasattr(self._client._data_source, "_cfg"):
-            cfg = self._client._data_source._cfg
-            token = getattr(cfg, "token", None)
-            revision = getattr(cfg, "revision", None)
-
-        local_path = hf_hub_download(
-            repo_id="AlphaDojo/dojo_stock_kline",
-            filename="data.parquet",
-            repo_type="dataset",
-            token=token,
-            revision=revision,
-        )
-
-        return pd.read_parquet(local_path)
+        return self._client._data_source.fetch_df(path="/api/qdata/v1/stock/kline")
 
     def get_kline_cs(
         self,
@@ -1155,36 +1132,11 @@ class AsyncStocks(AsyncAPIResource):
     async def get_all_klines_with_df(self) -> "pd.DataFrame":  # type: ignore
         """Retrieves offline stock K-line data directly as a pandas DataFrame asynchronously.
 
-        This method fetches the local path to data.parquet using huggingface_hub
-        and reads it directly into a pandas DataFrame in a background thread.
+        This method leverages the data source to fetch and cache a Pandas DataFrame.
         """
         import asyncio
 
-        def _fetch_and_read():
-            try:
-                import pandas as pd
-                from huggingface_hub import hf_hub_download
-            except ImportError:
-                raise ImportError("pandas and huggingface_hub are required for get_all_klines_with_df")
-
-            token = None
-            revision = None
-            if hasattr(self._client._data_source, "_cfg"):
-                cfg = self._client._data_source._cfg
-                token = getattr(cfg, "token", None)
-                revision = getattr(cfg, "revision", None)
-
-            local_path = hf_hub_download(
-                repo_id="AlphaDojo/dojo_stock_kline",
-                filename="data.parquet",
-                repo_type="dataset",
-                token=token,
-                revision=revision,
-            )
-
-            return pd.read_parquet(local_path)
-
-        return await asyncio.to_thread(_fetch_and_read)
+        return await asyncio.to_thread(self._client._data_source.fetch_df, path="/api/qdata/v1/stock/kline")
 
     async def get_kline_cs(
         self,
