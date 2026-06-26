@@ -96,6 +96,7 @@ class HuggingFaceDataSource:
             table = ds.data.table
             self._table_cache[cache_key] = table
             self._warm_companion_files(spec, params)
+            ds.cleanup_cache_files()
             return table
         except Exception as err:
             if spec.fallback_template:
@@ -118,6 +119,7 @@ class HuggingFaceDataSource:
                     table = ds.data.table
                     self._table_cache[cache_key_fb] = table
                     self._warm_companion_files(spec, params)
+                    ds.cleanup_cache_files()
                     return table
                 except Exception as fb_err:
                     raise OfflineDataNotAvailableError(f"Cannot fetch offline file {spec.repo_id}/{fb}: {fb_err}") from fb_err
@@ -153,6 +155,7 @@ class HuggingFaceDataSource:
         )
         table = ds.data.table
         self._table_cache[cache_key] = table
+        ds.cleanup_cache_files()
         return table
 
     @staticmethod
@@ -295,6 +298,7 @@ class HuggingFaceDataSource:
                 )
                 self._table_cache[cache_key] = ds.data.table
                 self._warm_companion_files(spec, {})
+                ds.cleanup_cache_files()
                 logger.info(f"Successfully refreshed {cache_key}")
             except Exception as e:
                 logger.warning(f"Failed to background refresh {cache_key}: {e}")
