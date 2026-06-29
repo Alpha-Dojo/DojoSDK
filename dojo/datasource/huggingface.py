@@ -67,11 +67,10 @@ class HuggingFaceDataSource:
 
     def _load_dataset(self, spec: HFEndpointSpec, params: dict[str, Any]):
         try:
-            from datasets import load_dataset
+            import pyarrow.parquet as pq
+            from huggingface_hub import hf_hub_download
         except ImportError:
-            raise OfflineDataNotAvailableError("Offline huggingface data source requires 'datasets' and 'pyarrow'. " "Install with `pip install dojosdk[huggingface]`.")
-
-        import os
+            raise OfflineDataNotAvailableError("Offline huggingface data source requires 'pyarrow' and 'huggingface_hub'. " "Install with `pip install dojosdk[huggingface]`.")
 
         relative = self._render_template(spec.path_template, params)
         cache_key = f"{spec.repo_id}/{relative}"
@@ -80,23 +79,19 @@ class HuggingFaceDataSource:
             self._warm_companion_files(spec, params)
             return self._table_cache[cache_key]
 
-        # Enforce strict offline mode if local_only is set
-        if self._cfg.local_only:
-            os.environ["HF_DATASETS_OFFLINE"] = "1"
-
         try:
-            ds = load_dataset(
-                spec.repo_id,
-                data_files=relative,
-                revision=self._cfg.revision,
+            local_path = hf_hub_download(
+                repo_id=spec.repo_id,
+                filename=relative,
+                repo_type="dataset",
                 token=self._cfg.token,
-                cache_dir=os.path.join(self._cfg.cache_dir, "datasets"),
-                split="train",
+                revision=self._cfg.revision,
+                cache_dir=self._cfg.cache_dir,
+                local_files_only=self._cfg.local_only,
             )
-            table = ds.data.table
+            table = pq.read_table(local_path)
             self._table_cache[cache_key] = table
             self._warm_companion_files(spec, params)
-            ds.cleanup_cache_files()
             return table
         except Exception as err:
             if spec.fallback_template:
@@ -108,18 +103,18 @@ class HuggingFaceDataSource:
 
                 logger.warning(f"Failed to fetch main file {relative}, falling back to {fb}: {err}")
                 try:
-                    ds = load_dataset(
-                        spec.repo_id,
-                        data_files=fb,
-                        revision=self._cfg.revision,
+                    local_path = hf_hub_download(
+                        repo_id=spec.repo_id,
+                        filename=fb,
+                        repo_type="dataset",
                         token=self._cfg.token,
-                        cache_dir=os.path.join(self._cfg.cache_dir, "datasets"),
-                        split="train",
+                        revision=self._cfg.revision,
+                        cache_dir=self._cfg.cache_dir,
+                        local_files_only=self._cfg.local_only,
                     )
-                    table = ds.data.table
+                    table = pq.read_table(local_path)
                     self._table_cache[cache_key_fb] = table
                     self._warm_companion_files(spec, params)
-                    ds.cleanup_cache_files()
                     return table
                 except Exception as fb_err:
                     raise OfflineDataNotAvailableError(f"Cannot fetch offline file {spec.repo_id}/{fb}: {fb_err}") from fb_err
@@ -134,28 +129,27 @@ class HuggingFaceDataSource:
 
     def _load_companion_dataset(self, repo_id: str, template: str, params: dict[str, Any]):
         try:
-            from datasets import load_dataset
+            import pyarrow.parquet as pq
+            from huggingface_hub import hf_hub_download
         except ImportError:
-            raise OfflineDataNotAvailableError("Offline huggingface data source requires 'datasets' and 'pyarrow'. " "Install with `pip install dojosdk[huggingface]`.")
-
-        import os
+            raise OfflineDataNotAvailableError("Offline huggingface data source requires 'pyarrow' and 'huggingface_hub'. " "Install with `pip install dojosdk[huggingface]`.")
 
         relative = self._render_template(template, params)
         cache_key = f"{repo_id}/{relative}"
         if cache_key in self._table_cache:
             return self._table_cache[cache_key]
 
-        ds = load_dataset(
-            repo_id,
-            data_files=relative,
-            revision=self._cfg.revision,
+        local_path = hf_hub_download(
+            repo_id=repo_id,
+            filename=relative,
+            repo_type="dataset",
             token=self._cfg.token,
-            cache_dir=os.path.join(self._cfg.cache_dir, "datasets"),
-            split="train",
+            revision=self._cfg.revision,
+            cache_dir=self._cfg.cache_dir,
+            local_files_only=self._cfg.local_only,
         )
-        table = ds.data.table
+        table = pq.read_table(local_path)
         self._table_cache[cache_key] = table
-        ds.cleanup_cache_files()
         return table
 
     @staticmethod
@@ -268,11 +262,11 @@ class HuggingFaceDataSource:
     def refresh_all_caches(self) -> None:
         """Force redownload and recache all registered endpoints."""
         try:
-            from datasets import load_dataset
+            import pyarrow.parquet as pq
+            from huggingface_hub import hf_hub_download
         except ImportError:
             return
 
-        import os
         from dojo.datasource.registry import HF_REGISTRY
 
         logger.info("Starting background refresh of all offline datasets...")
@@ -287,18 +281,17 @@ class HuggingFaceDataSource:
 
             cache_key = f"{spec.repo_id}/{relative}"
             try:
-                ds = load_dataset(
-                    spec.repo_id,
-                    data_files=relative,
-                    revision=self._cfg.revision,
+                local_path = hf_hub_download(
+                    repo_id=spec.repo_id,
+                    filename=relative,
+                    repo_type="dataset",
                     token=self._cfg.token,
-                    cache_dir=os.path.join(self._cfg.cache_dir, "datasets"),
-                    download_mode="force_redownload",
-                    split="train",
+                    revision=self._cfg.revision,
+                    cache_dir=self._cfg.cache_dir,
+                    force_download=True,
                 )
-                self._table_cache[cache_key] = ds.data.table
+                self._table_cache[cache_key] = pq.read_table(local_path)
                 self._warm_companion_files(spec, {})
-                ds.cleanup_cache_files()
                 logger.info(f"Successfully refreshed {cache_key}")
             except Exception as e:
                 logger.warning(f"Failed to background refresh {cache_key}: {e}")
@@ -375,8 +368,8 @@ class HuggingFaceDataSource:
             logger.error("Cache cleanup requires 'huggingface_hub'.")
             return {"error": "huggingface_hub is not installed"}
 
-        # Scan the default HF cache directory
-        cache_info = scan_cache_dir()
+        # Scan the configured HF cache directory
+        cache_info = scan_cache_dir(self._cfg.cache_dir)
         freed_summary = {}
         total_freed_bytes = 0
 

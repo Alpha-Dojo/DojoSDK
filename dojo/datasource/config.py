@@ -17,7 +17,7 @@ class HFConfig:
 
     token: str | None = None
     revision: str = "main"
-    cache_dir: str = os.path.expanduser("~/.dojo/cache")
+    cache_dir: str = os.path.expanduser("~/.cache/huggingface/hub")
     local_only: bool = False
     repo_prefix: str = "flowhale"
 
@@ -26,7 +26,7 @@ class HFConfig:
         return cls(
             token=os.environ.get("DOJO_HF_TOKEN"),
             revision=os.environ.get("DOJO_HF_REVISION", "main"),
-            cache_dir=os.environ.get("DOJO_CACHE_DIR", os.path.expanduser("~/.dojo/cache")),
+            cache_dir=os.environ.get("DOJO_CACHE_DIR", os.path.expanduser("~/.cache/huggingface/hub")),
             local_only=_env_bool("DOJO_HF_OFFLINE", False),
             repo_prefix=os.environ.get("DOJO_HF_REPO_PREFIX", "flowhale"),
         )

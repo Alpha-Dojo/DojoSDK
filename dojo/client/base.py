@@ -62,7 +62,7 @@ class BaseClient:
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "User-Agent": "DojoSDK/Python 0.1.3",
+            "User-Agent": "DojoSDK/Python 0.1.4",
             "X-Dojo-Lang": "python",
             "X-Dojo-OS": platform.system().lower(),
             "X-Dojo-Arch": platform.machine().lower(),
