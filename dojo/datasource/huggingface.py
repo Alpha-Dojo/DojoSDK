@@ -62,6 +62,9 @@ class HuggingFaceDataSource:
         )
 
         df = pd.read_parquet(local_path)
+        df = df.sort_values(by=["symbol","bar_time"])
+        df["index_symbol"] = df.symbol
+        df = df.set_index("index_symbol")
         self._df_cache[cache_key] = df
         return df
 
