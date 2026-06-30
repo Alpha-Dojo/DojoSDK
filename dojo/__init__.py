@@ -1,6 +1,14 @@
 from dojo.client.sync import Dojo as Dojo
 from dojo.client.async_client import AsyncDojo as AsyncDojo
 
+import importlib.metadata
+
+try:
+    __version__ = importlib.metadata.version("dojosdk")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "unknown"
+
+
 from dojo._exceptions import (
     DojoError as DojoError,
     APIError as APIError,
@@ -19,6 +27,7 @@ from dojo._exceptions import (
 )
 
 __all__ = [
+    "__version__",
     "Dojo",
     "AsyncDojo",
     "DojoError",

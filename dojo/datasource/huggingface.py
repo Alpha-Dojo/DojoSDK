@@ -348,9 +348,10 @@ class HuggingFaceDataSource:
 
         def _do_preload(i, path, spec):
             try:
-                logger.info(f"[{i}/{total}] 开始预加载 {path} ...")
-                self._load_dataset(spec, {})
-                logger.info(f"[{i}/{total}] 成功预加载 {path}")
+                logger.debug(f"[{i}/{total}] 开始预加载 {path} ...")
+                if spec.path_template.endswith(".parquet"):
+                    self._load_dataset(spec, {})
+                logger.debug(f"[{i}/{total}] 成功预加载 {path}")
             except Exception as e:
                 logger.error(f"[{i}/{total}] 预加载 {path} 失败: {e}")
 
@@ -445,9 +446,9 @@ class HuggingFaceKlineDataSource(HuggingFaceDataSource):
                 # table = self._load_dataset(spec, {})
                 cache_key = f"{spec.repo_id}/{self._render_template(spec.path_template, {})}"
                 if cache_key not in self._grouped_cache:
-                    logger.info(f"[{i}/{total}] 开始 Pre-grouping kline data for {cache_key} ...")
+                    logger.debug(f"[{i}/{total}] 开始 Pre-grouping kline data for {cache_key} ...")
                     # self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
-                    logger.info(f"[{i}/{total}] 成功 Pre-grouping kline data for {cache_key}.")
+                    logger.debug(f"[{i}/{total}] 成功 Pre-grouping kline data for {cache_key}.")
             except Exception as e:
                 logger.error(f"[{i}/{total}] Pre-grouping {path} 失败: {e}")
 
