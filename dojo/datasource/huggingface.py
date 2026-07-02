@@ -8,6 +8,79 @@ from dojo.datasource.config import HFConfig
 from dojo.datasource.registry import HFEndpointSpec, resolve
 from dojo._exceptions import OfflineDataNotAvailableError
 from dojo.logging import logger
+import ctypes
+import threading
+import time
+
+
+class DownloadStalledError(Exception):
+    pass
+
+
+def _async_raise(tid, exctype):
+    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), ctypes.py_object(exctype))
+    if res == 0:
+        pass
+    elif res != 1:
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), None)
+
+
+_active_downloads = {}
+_active_downloads_lock = threading.Lock()
+
+
+try:
+    import huggingface_hub.utils._progress
+
+    original_tqdm = huggingface_hub.utils._progress.tqdm
+
+    class WatchdogTqdm(original_tqdm):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._tid = threading.get_ident()
+            with _active_downloads_lock:
+                _active_downloads[self._tid] = {"last_update_time": time.time(), "last_n": getattr(self, "n", 0)}
+
+        def update(self, n=1):
+            super().update(n)
+            with _active_downloads_lock:
+                if self._tid in _active_downloads:
+                    if getattr(self, "n", 0) > _active_downloads[self._tid].get("last_n", 0):
+                        _active_downloads[self._tid]["last_n"] = getattr(self, "n", 0)
+                        _active_downloads[self._tid]["last_update_time"] = time.time()
+
+        def close(self):
+            super().close()
+            with _active_downloads_lock:
+                if self._tid in _active_downloads:
+                    del _active_downloads[self._tid]
+
+    huggingface_hub.utils._progress.tqdm = WatchdogTqdm
+except ImportError:
+    pass
+
+_watchdog_started = False
+_watchdog_start_lock = threading.Lock()
+
+
+def _download_watchdog_loop():
+    while True:
+        time.sleep(1)
+        now = time.time()
+        with _active_downloads_lock:
+            for tid, info in list(_active_downloads.items()):
+                if now - info["last_update_time"] > 10:
+                    _async_raise(tid, DownloadStalledError)
+                    del _active_downloads[tid]
+
+
+def _start_watchdog():
+    global _watchdog_started
+    with _watchdog_start_lock:
+        if not _watchdog_started:
+            t = threading.Thread(target=_download_watchdog_loop, daemon=True, name="DojoSDK-DownloadWatchdog")
+            t.start()
+            _watchdog_started = True
 
 
 class HuggingFaceDataSource:
@@ -21,6 +94,7 @@ class HuggingFaceDataSource:
         self._bg_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._cleanup_lock = threading.Lock()
+        _start_watchdog()
 
     def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
         spec = resolve(path)
@@ -150,10 +224,27 @@ class HuggingFaceDataSource:
     def _download_and_cleanup(self, **kwargs) -> str:
         from huggingface_hub import hf_hub_download
         import os
+        import threading
+        import time
 
-        local_path = hf_hub_download(**kwargs)
-
+        tid = threading.get_ident()
         repo_id = kwargs.get("repo_id")
+        filename = kwargs.get("filename")
+
+        while True:
+            try:
+                with _active_downloads_lock:
+                    _active_downloads[tid] = {"last_update_time": time.time(), "last_n": 0}
+                local_path = hf_hub_download(**kwargs)
+                break
+            except DownloadStalledError:
+                logger.warning(f"Download for {repo_id}/{filename} stalled for >10s. Restarting hf_hub_download...")
+                time.sleep(1)
+            finally:
+                with _active_downloads_lock:
+                    if tid in _active_downloads:
+                        del _active_downloads[tid]
+
         if not repo_id:
             return local_path
 
