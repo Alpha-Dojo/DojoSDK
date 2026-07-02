@@ -49,3 +49,4 @@ uv.lock
 *.egg-info/
 dist/
 build/
+.claude/
