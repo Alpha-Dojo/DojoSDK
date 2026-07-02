@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from typing import Any
-
+import pyarrow.parquet as pq
+import pandas as pd
+import pyarrow.compute as pc
 from dojo.datasource.config import HFConfig
 from dojo.datasource.registry import HFEndpointSpec, resolve
 from dojo._exceptions import OfflineDataNotAvailableError
@@ -18,6 +20,7 @@ class HuggingFaceDataSource:
         self._cfg = config or HFConfig.from_env()
         self._bg_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+        self._cleanup_lock = threading.Lock()
 
     def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
         spec = resolve(path)
@@ -35,7 +38,7 @@ class HuggingFaceDataSource:
         data: Any = {"total_num": len(rows), "data": rows} if spec.envelope == "list" else (rows[0] if rows else {})
         return {"code": 0, "message": "ok", "data": data}
 
-    def fetch_df(self, *, path: str, params: dict[str, Any] | None = None) -> Any:
+    def fetch_df(self, *, path: str, params: dict[str, Any] | None = None, refresh: bool = False) -> Any:
         params = params or {}
         spec = resolve(path)
         if spec is None:
@@ -44,16 +47,10 @@ class HuggingFaceDataSource:
         relative = self._render_template(spec.path_template, params)
         cache_key = f"{spec.repo_id}/{relative}"
 
-        if cache_key in self._df_cache:
+        if cache_key in self._df_cache and not refresh:
             return self._df_cache[cache_key]
 
-        try:
-            import pandas as pd
-            from huggingface_hub import hf_hub_download
-        except ImportError:
-            raise ImportError("pandas and huggingface_hub are required for fetch_df")
-
-        local_path = hf_hub_download(
+        local_path = self._download_and_cleanup(
             repo_id=spec.repo_id,
             filename=relative,
             repo_type="dataset",
@@ -62,28 +59,22 @@ class HuggingFaceDataSource:
         )
 
         df = pd.read_parquet(local_path)
-        df = df.sort_values(by=["symbol","bar_time"])
+        df = df.sort_values(by=["symbol", "bar_time"])
         df["index_symbol"] = df.symbol
         df = df.set_index("index_symbol")
         self._df_cache[cache_key] = df
         return df
 
-    def _load_dataset(self, spec: HFEndpointSpec, params: dict[str, Any]):
-        try:
-            import pyarrow.parquet as pq
-            from huggingface_hub import hf_hub_download
-        except ImportError:
-            raise OfflineDataNotAvailableError("Offline huggingface data source requires 'pyarrow' and 'huggingface_hub'. " "Install with `pip install dojosdk[huggingface]`.")
-
+    def _load_dataset(self, spec: HFEndpointSpec, params: dict[str, Any], refresh: bool = False):
         relative = self._render_template(spec.path_template, params)
         cache_key = f"{spec.repo_id}/{relative}"
 
-        if cache_key in self._table_cache:
+        if cache_key in self._table_cache and not refresh:
             self._warm_companion_files(spec, params)
             return self._table_cache[cache_key]
 
         try:
-            local_path = hf_hub_download(
+            local_path = self._download_and_cleanup(
                 repo_id=spec.repo_id,
                 filename=relative,
                 repo_type="dataset",
@@ -106,7 +97,7 @@ class HuggingFaceDataSource:
 
                 logger.warning(f"Failed to fetch main file {relative}, falling back to {fb}: {err}")
                 try:
-                    local_path = hf_hub_download(
+                    local_path = self._download_and_cleanup(
                         repo_id=spec.repo_id,
                         filename=fb,
                         repo_type="dataset",
@@ -131,18 +122,12 @@ class HuggingFaceDataSource:
                 logger.warning(f"Failed to warm companion file {spec.repo_id}/{template}: {err}")
 
     def _load_companion_dataset(self, repo_id: str, template: str, params: dict[str, Any]):
-        try:
-            import pyarrow.parquet as pq
-            from huggingface_hub import hf_hub_download
-        except ImportError:
-            raise OfflineDataNotAvailableError("Offline huggingface data source requires 'pyarrow' and 'huggingface_hub'. " "Install with `pip install dojosdk[huggingface]`.")
-
         relative = self._render_template(template, params)
         cache_key = f"{repo_id}/{relative}"
         if cache_key in self._table_cache:
             return self._table_cache[cache_key]
 
-        local_path = hf_hub_download(
+        local_path = self._download_and_cleanup(
             repo_id=repo_id,
             filename=relative,
             repo_type="dataset",
@@ -162,12 +147,47 @@ class HuggingFaceDataSource:
         except KeyError as e:
             raise OfflineDataNotAvailableError(f"Offline file path template {template!r} is missing required parameter {e}") from e
 
-    def _apply_filters(self, table, spec: HFEndpointSpec, params: dict[str, Any]) -> list[dict]:
-        try:
-            import pyarrow.compute as pc
-        except ImportError:
-            raise OfflineDataNotAvailableError("Offline data processing requires 'pyarrow'.")
+    def _download_and_cleanup(self, **kwargs) -> str:
+        from huggingface_hub import hf_hub_download
+        import os
 
+        local_path = hf_hub_download(**kwargs)
+
+        repo_id = kwargs.get("repo_id")
+        if not repo_id:
+            return local_path
+
+        try:
+            parts = local_path.split(os.sep)
+            if "snapshots" in parts:
+                snapshots_idx = parts.index("snapshots")
+                commit_hash = parts[snapshots_idx + 1]
+                repo_dir = os.sep.join(parts[:snapshots_idx])
+                snapshots_dir = os.path.join(repo_dir, "snapshots")
+
+                if os.path.exists(snapshots_dir):
+                    snapshots = [d for d in os.listdir(snapshots_dir) if os.path.isdir(os.path.join(snapshots_dir, d))]
+                    if len(snapshots) > 1:
+                        with self._cleanup_lock:
+                            snapshots = [d for d in os.listdir(snapshots_dir) if os.path.isdir(os.path.join(snapshots_dir, d))]
+                            other_commits = [s for s in snapshots if s != commit_hash]
+                            if other_commits:
+                                from huggingface_hub import scan_cache_dir
+
+                                cache_info = scan_cache_dir(self._cfg.cache_dir)
+                                for repo in cache_info.repos:
+                                    if repo.repo_id == repo_id:
+                                        strategy = cache_info.delete_revisions(*other_commits)
+                                        if strategy.expected_freed_size > 0:
+                                            strategy.execute()
+                                            logger.info(f"Cleaned up {len(other_commits)} older revisions for {repo_id}, freed {strategy.expected_freed_size_str}")
+                                        break
+        except Exception as e:
+            logger.warning(f"Failed to perform cache cleanup for {repo_id}: {e}")
+
+        return local_path
+
+    def _apply_filters(self, table, spec: HFEndpointSpec, params: dict[str, Any]) -> list[dict]:
         mask = None
 
         if spec.symbol_field and spec.symbol_param in params:
@@ -264,12 +284,6 @@ class HuggingFaceDataSource:
 
     def refresh_all_caches(self) -> None:
         """Force redownload and recache all registered endpoints."""
-        try:
-            import pyarrow.parquet as pq
-            from huggingface_hub import hf_hub_download
-        except ImportError:
-            return
-
         from dojo.datasource.registry import HF_REGISTRY
 
         logger.info("Starting background refresh of all offline datasets...")
@@ -284,7 +298,7 @@ class HuggingFaceDataSource:
 
             cache_key = f"{spec.repo_id}/{relative}"
             try:
-                local_path = hf_hub_download(
+                local_path = self._download_and_cleanup(
                     repo_id=spec.repo_id,
                     filename=relative,
                     repo_type="dataset",
@@ -350,7 +364,7 @@ class HuggingFaceDataSource:
             try:
                 logger.debug(f"[{i}/{total}] 开始预加载 {path} ...")
                 if spec.path_template.endswith(".parquet"):
-                    self._load_dataset(spec, {})
+                    self._load_dataset(spec, {}, refresh=True)
                 logger.debug(f"[{i}/{total}] 成功预加载 {path}")
             except Exception as e:
                 logger.error(f"[{i}/{total}] 预加载 {path} 失败: {e}")
@@ -422,40 +436,11 @@ class HuggingFaceKlineDataSource(HuggingFaceDataSource):
         if not spec:
             raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
 
-        # if spec.symbol_field and spec.symbol_param in params and path.endswith("/kline"):
-        #     return self._fast_fetch_kline(path, spec, params, json)
-
         return super().fetch(method=method, path=path, params=params, json=json)
 
     def preload(self, paths: list[str]) -> None:
         super().preload(paths)
-        from dojo.datasource.registry import resolve
-        from tqdm import tqdm
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        kline_paths = [p for p in paths if p.endswith("/kline")]
-        if not kline_paths:
-            return
-
-        total = len(kline_paths)
-        specs = [(i, path, resolve(path)) for i, path in enumerate(kline_paths, start=1)]
-        valid_specs = [(i, p, s) for i, p, s in specs if s]
-
-        def _do_pregroup(i, path, spec):
-            try:
-                # table = self._load_dataset(spec, {})
-                cache_key = f"{spec.repo_id}/{self._render_template(spec.path_template, {})}"
-                if cache_key not in self._grouped_cache:
-                    logger.debug(f"[{i}/{total}] 开始 Pre-grouping kline data for {cache_key} ...")
-                    # self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
-                    logger.debug(f"[{i}/{total}] 成功 Pre-grouping kline data for {cache_key}.")
-            except Exception as e:
-                logger.error(f"[{i}/{total}] Pre-grouping {path} 失败: {e}")
-
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(_do_pregroup, i, path, spec) for i, path, spec in valid_specs]
-            for _ in tqdm(as_completed(futures), total=len(futures), desc="Pre-grouping Kline data"):
-                pass
+        self.fetch_df(path="/api/qdata/v1/stock/kline", params={}, refresh=True)
 
     def _fast_fetch_kline(self, path: str, spec: Any, params: dict[str, Any], json_body: Any | None) -> Any:
         merged = dict(params)
