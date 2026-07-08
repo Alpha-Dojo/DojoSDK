@@ -133,12 +133,12 @@ class AsyncDojo(AsyncAPIClient):
                 paths = list(HF_REGISTRY.keys())
             await asyncio.to_thread(self._data_source.preload, paths)
 
-    async def upload_dataset(self, dataset_name: str, local_folder: str, token: str | None = None) -> None:
-        """Uploads a local folder as a dataset to HuggingFace Hub using a background thread."""
+    async def upload_dataset(self, dataset_name: str, local_folder: str, token: str | None = None, ms_token: str | None = None) -> None:
+        """Uploads a local folder as a dataset to HuggingFace Hub and ModelScope using a background thread."""
         import asyncio
         from dojo.datasource.upload import upload_dataset as sync_upload_dataset
 
-        await asyncio.to_thread(sync_upload_dataset, dataset_name, local_folder, token)
+        await asyncio.to_thread(sync_upload_dataset, dataset_name, local_folder, token, ms_token)
 
     async def download_dataset(self, dataset_name: str, local_folder: str, token: str | None = None) -> None:
         """Downloads a dataset from HuggingFace Hub to a local folder using a background thread."""

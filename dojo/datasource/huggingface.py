@@ -59,6 +59,35 @@ try:
 except ImportError:
     pass
 
+# try:
+#     import modelscope.hub.file_download
+#     original_ms_tqdm = modelscope.hub.file_download.tqdm
+
+#     class WatchdogTqdmMS(original_ms_tqdm):
+#         def __init__(self, *args, **kwargs):
+#             super().__init__(*args, **kwargs)
+#             self._tid = threading.get_ident()
+#             with _active_downloads_lock:
+#                 _active_downloads[self._tid] = {"last_update_time": time.time(), "last_n": getattr(self, "n", 0)}
+
+#         def update(self, n=1):
+#             super().update(n)
+#             with _active_downloads_lock:
+#                 if self._tid in _active_downloads:
+#                     if getattr(self, "n", 0) > _active_downloads[self._tid].get("last_n", 0):
+#                         _active_downloads[self._tid]["last_n"] = getattr(self, "n", 0)
+#                         _active_downloads[self._tid]["last_update_time"] = time.time()
+
+#         def close(self):
+#             super().close()
+#             with _active_downloads_lock:
+#                 if self._tid in _active_downloads:
+#                     del _active_downloads[self._tid]
+
+#     modelscope.hub.file_download.tqdm = WatchdogTqdmMS
+# except Exception:
+#     pass
+
 _watchdog_started = False
 _watchdog_start_lock = threading.Lock()
 
@@ -126,6 +155,7 @@ class HuggingFaceDataSource:
 
         local_path = self._download_and_cleanup(
             repo_id=spec.repo_id,
+            ms_repo_id=spec.ms_repo_id,
             filename=relative,
             repo_type="dataset",
             token=self._cfg.token,
@@ -151,6 +181,7 @@ class HuggingFaceDataSource:
         try:
             local_path = self._download_and_cleanup(
                 repo_id=spec.repo_id,
+                ms_repo_id=spec.ms_repo_id,
                 filename=relative,
                 repo_type="dataset",
                 token=self._cfg.token,
@@ -174,6 +205,7 @@ class HuggingFaceDataSource:
                 try:
                     local_path = self._download_and_cleanup(
                         repo_id=spec.repo_id,
+                        ms_repo_id=spec.ms_repo_id,
                         filename=fb,
                         repo_type="dataset",
                         token=self._cfg.token,
@@ -192,11 +224,11 @@ class HuggingFaceDataSource:
     def _warm_companion_files(self, spec: HFEndpointSpec, params: dict[str, Any]) -> None:
         for template in spec.companion_files:
             try:
-                self._load_companion_dataset(spec.repo_id, template, params)
+                self._load_companion_dataset(spec.repo_id, template, params, spec.ms_repo_id)
             except Exception as err:
                 logger.warning(f"Failed to warm companion file {spec.repo_id}/{template}: {err}")
 
-    def _load_companion_dataset(self, repo_id: str, template: str, params: dict[str, Any]):
+    def _load_companion_dataset(self, repo_id: str, template: str, params: dict[str, Any], ms_repo_id: str | None = None):
         relative = self._render_template(template, params)
         cache_key = f"{repo_id}/{relative}"
         if cache_key in self._table_cache:
@@ -204,6 +236,7 @@ class HuggingFaceDataSource:
 
         local_path = self._download_and_cleanup(
             repo_id=repo_id,
+            ms_repo_id=ms_repo_id or repo_id,
             filename=relative,
             repo_type="dataset",
             token=self._cfg.token,
@@ -224,27 +257,45 @@ class HuggingFaceDataSource:
 
     def _download_and_cleanup(self, **kwargs) -> str:
         from huggingface_hub import hf_hub_download
+        from dojo.datasource.network import resolve_backend
         import os
         import threading
         import time
 
         tid = threading.get_ident()
         repo_id = kwargs.get("repo_id")
+        ms_repo_id = kwargs.pop("ms_repo_id", repo_id)
         filename = kwargs.get("filename")
+
+        backend = resolve_backend(self._cfg)
 
         while True:
             try:
-                with _active_downloads_lock:
-                    _active_downloads[tid] = {"last_update_time": time.time(), "last_n": 0}
-                local_path = hf_hub_download(**kwargs)
+                if backend == "huggingface":
+                    with _active_downloads_lock:
+                        _active_downloads[tid] = {"last_update_time": time.time(), "last_n": 0}
+
+                if backend == "modelscope":
+                    from modelscope.hub.file_download import dataset_file_download
+
+                    ms_revision = kwargs.get("revision", "master")
+                    if ms_revision == "main":
+                        ms_revision = "master"
+
+                    local_path = dataset_file_download(
+                        dataset_id=ms_repo_id, file_path=filename, revision=ms_revision, token=self._cfg.modelscope_token, local_files_only=kwargs.get("local_files_only", False)
+                    )
+                else:
+                    local_path = hf_hub_download(**kwargs)
                 break
             except DownloadStalledError:
-                logger.warning(f"Download for {repo_id}/{filename} stalled for >10s. Restarting hf_hub_download...")
+                logger.warning(f"Download for {repo_id}/{filename} stalled for >10s. Restarting {backend} download...")
                 time.sleep(1)
             finally:
-                with _active_downloads_lock:
-                    if tid in _active_downloads:
-                        del _active_downloads[tid]
+                if backend == "huggingface":
+                    with _active_downloads_lock:
+                        if tid in _active_downloads:
+                            del _active_downloads[tid]
 
         if not repo_id:
             return local_path
@@ -392,6 +443,7 @@ class HuggingFaceDataSource:
             try:
                 local_path = self._download_and_cleanup(
                     repo_id=spec.repo_id,
+                    ms_repo_id=spec.ms_repo_id,
                     filename=relative,
                     repo_type="dataset",
                     token=self._cfg.token,
