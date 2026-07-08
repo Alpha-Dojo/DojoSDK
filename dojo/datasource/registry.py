@@ -8,7 +8,15 @@ class HFEndpointSpec:
     """Describes how a single API endpoint fetches data from a HuggingFace dataset."""
 
     repo_id: str
+    ms_repo_id: str | None = None
     repo_type: str = "dataset"
+
+    def __post_init__(self):
+        if self.ms_repo_id is None:
+            if self.repo_id.startswith("AlphaDojo/"):
+                self.ms_repo_id = "alphadojo/" + self.repo_id.split("/", 1)[1]
+            else:
+                self.ms_repo_id = self.repo_id
 
     # File path template rendered with request parameters
     path_template: str = "data.parquet"

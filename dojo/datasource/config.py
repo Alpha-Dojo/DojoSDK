@@ -16,6 +16,8 @@ class HFConfig:
     """HuggingFace offline datasource config from environment variables."""
 
     token: str | None = None
+    modelscope_token: str | None = None
+    backend: str = "auto"
     revision: str = "main"
     cache_dir: str = os.path.expanduser("~/.cache/huggingface/hub")
     local_only: bool = False
@@ -25,6 +27,8 @@ class HFConfig:
     def from_env(cls) -> "HFConfig":
         return cls(
             token=os.environ.get("DOJO_HF_TOKEN"),
+            modelscope_token=os.environ.get("DOJO_MODELSCOPE_TOKEN") or os.environ.get("MODELSCOPE_TOKEN"),
+            backend=os.environ.get("DOJO_DATA_BACKEND", "auto").lower(),
             revision=os.environ.get("DOJO_HF_REVISION", "main"),
             cache_dir=os.environ.get("DOJO_CACHE_DIR", os.path.expanduser("~/.cache/huggingface/hub")),
             local_only=_env_bool("DOJO_HF_OFFLINE", False),
