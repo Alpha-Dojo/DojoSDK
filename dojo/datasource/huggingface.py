@@ -277,10 +277,26 @@ class HuggingFaceDataSource:
 
                 if backend == "modelscope":
                     from modelscope.hub.file_download import dataset_file_download
+                    from modelscope.hub.api import HubApi
+
+                    api = HubApi()
+                    if self._cfg.modelscope_token:
+                        api.login(self._cfg.modelscope_token)
 
                     ms_revision = kwargs.get("revision", "master")
                     if ms_revision == "main":
                         ms_revision = "master"
+
+                    local_files_only = kwargs.get("local_files_only", False)
+                    if not local_files_only:
+                        try:
+                            files = api.get_dataset_files(ms_repo_id, revision=ms_revision)
+                            for f in files:
+                                if f.get("Path") == filename and f.get("Revision"):
+                                    ms_revision = f["Revision"]
+                                    break
+                        except Exception as e:
+                            logger.debug(f"Failed to fetch dataset files for {ms_repo_id}: {e}")
 
                     local_path = dataset_file_download(
                         dataset_id=ms_repo_id, file_path=filename, revision=ms_revision, token=self._cfg.modelscope_token, local_files_only=kwargs.get("local_files_only", False)
