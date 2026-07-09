@@ -330,16 +330,23 @@ class HuggingFaceDataSource:
                             snapshots = [d for d in os.listdir(snapshots_dir) if os.path.isdir(os.path.join(snapshots_dir, d))]
                             other_commits = [s for s in snapshots if s != commit_hash]
                             if other_commits:
-                                from huggingface_hub import scan_cache_dir
+                                if backend == "huggingface":
+                                    from huggingface_hub import scan_cache_dir
 
-                                cache_info = scan_cache_dir(self._cfg.cache_dir)
-                                for repo in cache_info.repos:
-                                    if repo.repo_id == repo_id:
-                                        strategy = cache_info.delete_revisions(*other_commits)
-                                        if strategy.expected_freed_size > 0:
-                                            strategy.execute()
-                                            logger.info(f"Cleaned up {len(other_commits)} older revisions for {repo_id}, freed {strategy.expected_freed_size_str}")
-                                        break
+                                    cache_info = scan_cache_dir(self._cfg.cache_dir)
+                                    for repo in cache_info.repos:
+                                        if repo.repo_id == repo_id:
+                                            strategy = cache_info.delete_revisions(*other_commits)
+                                            if strategy.expected_freed_size > 0:
+                                                strategy.execute()
+                                                logger.info(f"Cleaned up old huggingface revisions for {repo_id}: {other_commits}")
+                                elif backend == "modelscope":
+                                    import shutil
+
+                                    for c in other_commits:
+                                        path_to_delete = os.path.join(snapshots_dir, c)
+                                        shutil.rmtree(path_to_delete, ignore_errors=True)
+                                    logger.debug(f"Cleaned up old modelscope revisions for {ms_repo_id}: {other_commits}")
         except Exception as e:
             logger.warning(f"Failed to perform cache cleanup for {repo_id}: {e}")
 
