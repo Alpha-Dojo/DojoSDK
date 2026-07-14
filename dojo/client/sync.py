@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from dojo.resources.sectors import Sectors
     from dojo.resources.strategy import Strategy
     from dojo.resources.cache import Cache
+    from dojo.resources.analysis import Analysis
 
 from dojo.client.base import SyncAPIClient
 from dojo._exceptions import DojoError
@@ -233,3 +234,10 @@ class Dojo(SyncAPIClient):
         from dojo.resources.market_data import Instruments
 
         return Instruments(self)
+
+    @cached_property
+    def analysis(self) -> Analysis:
+        """Access the analysis resource namespace for market dynamics and other analyses."""
+        from dojo.resources.analysis import Analysis
+
+        return Analysis(self)

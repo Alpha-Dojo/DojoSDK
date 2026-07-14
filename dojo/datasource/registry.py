@@ -159,6 +159,18 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         json_columns=[],
         envelope="dict",
     ),
+    "/api/qdata/v1/analysis/market_dynamics": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_market_dynamics",
+        path_template="data.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
+    # "/api/qdata/v1/analysis/topic_discoveries": HFEndpointSpec(
+    #     repo_id="AlphaDojo/dojo_topic_discoveries",
+    #     path_template="data.parquet",
+    #     json_columns=[],
+    #     envelope="list",
+    # ),
     # Additional endpoints can be added here
 }
 
