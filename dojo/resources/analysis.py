@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 from dojo.resources.base import SyncAPIResource, AsyncAPIResource
-from dojo.types.models import AnalysisMarketDynamicsResponse, AnalysisTopicDiscoveriesResponse
+from dojo.types.models import (
+    AnalysisMarketDynamicsResponse,
+    AnalysisTopicDiscoveriesResponse,
+    MarketDynamicsCreateResponse,
+)
 
 
 class Analysis(SyncAPIResource):
@@ -49,6 +53,46 @@ class Analysis(SyncAPIResource):
         )
 
     market_dynamics = get_market_dynamics
+
+    def create_market_dynamics(
+        self,
+        *,
+        event_time: str,
+        event_summary: dict[str, Any],
+        sector_impacts: list[dict[str, Any]],
+    ) -> MarketDynamicsCreateResponse:
+        """Create a single market dynamics record."""
+        return self._post(
+            "/api/qdata/v1/analysis/market_dynamics",
+            cast_to=MarketDynamicsCreateResponse,
+            options={
+                "json": {
+                    "event_time": event_time,
+                    "event_summary": event_summary,
+                    "sector_impacts": sector_impacts,
+                }
+            },
+        )
+
+    def update_market_dynamics(
+        self,
+        *,
+        event_time: str,
+        event_summary: dict[str, Any],
+        sector_impacts: list[dict[str, Any]],
+    ) -> MarketDynamicsCreateResponse:
+        """Update a single market dynamics record."""
+        return self._put(
+            "/api/qdata/v1/analysis/market_dynamics",
+            cast_to=MarketDynamicsCreateResponse,
+            options={
+                "json": {
+                    "event_time": event_time,
+                    "event_summary": event_summary,
+                    "sector_impacts": sector_impacts,
+                }
+            },
+        )
 
     def get_topic_discoveries(
         self,
@@ -133,6 +177,46 @@ class AsyncAnalysis(AsyncAPIResource):
         )
 
     market_dynamics = get_market_dynamics
+
+    async def create_market_dynamics(
+        self,
+        *,
+        event_time: str,
+        event_summary: dict[str, Any],
+        sector_impacts: list[dict[str, Any]],
+    ) -> MarketDynamicsCreateResponse:
+        """Create a single market dynamics record asynchronously."""
+        return await self._post(
+            "/api/qdata/v1/analysis/market_dynamics",
+            cast_to=MarketDynamicsCreateResponse,
+            options={
+                "json": {
+                    "event_time": event_time,
+                    "event_summary": event_summary,
+                    "sector_impacts": sector_impacts,
+                }
+            },
+        )
+
+    async def update_market_dynamics(
+        self,
+        *,
+        event_time: str,
+        event_summary: dict[str, Any],
+        sector_impacts: list[dict[str, Any]],
+    ) -> MarketDynamicsCreateResponse:
+        """Update a single market dynamics record asynchronously."""
+        return await self._put(
+            "/api/qdata/v1/analysis/market_dynamics",
+            cast_to=MarketDynamicsCreateResponse,
+            options={
+                "json": {
+                    "event_time": event_time,
+                    "event_summary": event_summary,
+                    "sector_impacts": sector_impacts,
+                }
+            },
+        )
 
     async def get_topic_discoveries(
         self,

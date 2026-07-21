@@ -383,6 +383,10 @@ class HuggingFaceDataSource:
         for k, v in params.items():
             if k in ignore_params or v is None:
                 continue
+            if isinstance(v, dict):
+                continue
+            if isinstance(v, (list, tuple, set)) and any(isinstance(item, dict) for item in v):
+                continue
             if k in table.column_names:
                 # If value is a collection (e.g. list of markets), use is_in, else equal
                 if isinstance(v, (list, tuple, set)):
