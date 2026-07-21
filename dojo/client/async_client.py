@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from dojo.resources.sectors import AsyncSectors
     from dojo.resources.strategy import AsyncStrategy
     from dojo.resources.cache import AsyncCache
+    from dojo.resources.analysis import AsyncAnalysis
 
 from dojo.client.base import AsyncAPIClient
 from dojo._exceptions import DojoError
@@ -237,3 +238,10 @@ class AsyncDojo(AsyncAPIClient):
         from dojo.resources.market_data import AsyncInstruments
 
         return AsyncInstruments(self)
+
+    @cached_property
+    def analysis(self) -> AsyncAnalysis:
+        """Access the analysis resource namespace for market dynamics and other analyses asynchronously."""
+        from dojo.resources.analysis import AsyncAnalysis
+
+        return AsyncAnalysis(self)

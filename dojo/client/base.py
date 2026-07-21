@@ -135,8 +135,8 @@ class BaseClient:
         response: httpx.Response,
         cast_to: Type[ResponseT],
     ) -> ResponseT:
-        # Check for non-2xx status code
-        if not response.is_success:
+        # Check for non-200 status code
+        if response.status_code != 200:
             try:
                 body = response.json()
             except Exception:
@@ -153,12 +153,13 @@ class BaseClient:
 
         # Unwrap QData standard API envelope and check business errors
         payload = data
-        if isinstance(data, dict) and "code" in data and "data" in data:
+        if isinstance(data, dict) and "code" in data:
             code = data.get("code")
             if str(code) not in ("0", "200", "00000", "success"):
                 msg = data.get("msg", data.get("message", f"API business error with code {code}"))
                 raise APIStatusError(f"Business Error: {msg} (code: {code})", response=response, body=data)
-            payload = data["data"]
+            if "data" in data:
+                payload = data["data"]
 
         if getattr(self, "return_raw_data", True):
             return cast(ResponseT, payload)

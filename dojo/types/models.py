@@ -407,3 +407,28 @@ class SectorPrecomputedTickerDailyResponse(DojoModel):
 
 class SectorPrecomputedManifestResponse(DojoModel):
     data: Dict[str, Any] | None = None
+
+
+# --- Analysis ---
+class AnalysisMarketDynamicsResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class AnalysisTopicDiscoveriesResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class MarketDynamicsItem(DojoModel):
+    event_time: str
+    event_summary: Dict[str, Any]
+    sector_impacts: List[Dict[str, Any]]
+
+
+class MarketDynamicsCreateRequest(DojoModel):
+    items: List[MarketDynamicsItem]
+
+
+class MarketDynamicsCreateResponse(DojoModel):
+    created: int
