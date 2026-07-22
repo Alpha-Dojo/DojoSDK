@@ -159,6 +159,42 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         json_columns=[],
         envelope="dict",
     ),
+    "/api/qdata/v1/sector/precomputed/fundamentals_period": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="fundamentals_period.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/sector/precomputed/market_benchmark_daily": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="market_benchmark_daily.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/sector/precomputed/sector_advice_daily": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="sector_advice_daily.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/sector/precomputed/sector_health_radar": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="sector_health_radar.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/sector/precomputed/sector_horizon_metrics": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="sector_horizon_metrics.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/sector/precomputed/theme_state_daily": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_sector_precomputed",
+        path_template="theme_state_daily.parquet",
+        json_columns=[],
+        envelope="list",
+    ),
     "/api/qdata/v1/analysis/market_dynamics": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_market_dynamics",
         path_template="data.parquet",
