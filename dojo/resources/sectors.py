@@ -13,6 +13,12 @@ from dojo.types.models import (
     SectorPrecomputedDailyResponse,
     SectorPrecomputedManifestResponse,
     SectorPrecomputedTickerDailyResponse,
+    SectorPrecomputedFundamentalsPeriodResponse,
+    SectorPrecomputedMarketBenchmarkDailyResponse,
+    SectorPrecomputedSectorAdviceDailyResponse,
+    SectorPrecomputedSectorHealthRadarResponse,
+    SectorPrecomputedSectorHorizonMetricsResponse,
+    SectorPrecomputedThemeStateDailyResponse,
 )
 
 
@@ -195,6 +201,30 @@ class Sectors(SyncAPIResource):
         """Retrieves sector precomputed snapshot manifest metadata."""
         return self._get("/api/qdata/v1/sector/precomputed/manifest", cast_to=SectorPrecomputedManifestResponse)
 
+    def get_precomputed_fundamentals_period(self) -> SectorPrecomputedFundamentalsPeriodResponse:
+        """Retrieves statically precomputed fundamentals period data."""
+        return self._get("/api/qdata/v1/sector/precomputed/fundamentals_period", cast_to=SectorPrecomputedFundamentalsPeriodResponse)
+
+    def get_precomputed_market_benchmark_daily(self) -> SectorPrecomputedMarketBenchmarkDailyResponse:
+        """Retrieves statically precomputed daily market benchmark data."""
+        return self._get("/api/qdata/v1/sector/precomputed/market_benchmark_daily", cast_to=SectorPrecomputedMarketBenchmarkDailyResponse)
+
+    def get_precomputed_sector_advice_daily(self) -> SectorPrecomputedSectorAdviceDailyResponse:
+        """Retrieves statically precomputed daily sector advice data."""
+        return self._get("/api/qdata/v1/sector/precomputed/sector_advice_daily", cast_to=SectorPrecomputedSectorAdviceDailyResponse)
+
+    def get_precomputed_sector_health_radar(self) -> SectorPrecomputedSectorHealthRadarResponse:
+        """Retrieves statically precomputed sector health radar data."""
+        return self._get("/api/qdata/v1/sector/precomputed/sector_health_radar", cast_to=SectorPrecomputedSectorHealthRadarResponse)
+
+    def get_precomputed_sector_horizon_metrics(self) -> SectorPrecomputedSectorHorizonMetricsResponse:
+        """Retrieves statically precomputed sector horizon metrics data."""
+        return self._get("/api/qdata/v1/sector/precomputed/sector_horizon_metrics", cast_to=SectorPrecomputedSectorHorizonMetricsResponse)
+
+    def get_precomputed_theme_state_daily(self) -> SectorPrecomputedThemeStateDailyResponse:
+        """Retrieves statically precomputed daily theme state data."""
+        return self._get("/api/qdata/v1/sector/precomputed/theme_state_daily", cast_to=SectorPrecomputedThemeStateDailyResponse)
+
 
 class AsyncSectors(AsyncAPIResource):
 
@@ -376,3 +406,27 @@ class AsyncSectors(AsyncAPIResource):
     async def get_precomputed_manifest(self) -> SectorPrecomputedManifestResponse:
         """Retrieves sector precomputed snapshot manifest metadata asynchronously."""
         return await self._get("/api/qdata/v1/sector/precomputed/manifest", cast_to=SectorPrecomputedManifestResponse)
+
+    async def get_precomputed_fundamentals_period(self) -> SectorPrecomputedFundamentalsPeriodResponse:
+        """Retrieves statically precomputed fundamentals period data asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/fundamentals_period", cast_to=SectorPrecomputedFundamentalsPeriodResponse)
+
+    async def get_precomputed_market_benchmark_daily(self) -> SectorPrecomputedMarketBenchmarkDailyResponse:
+        """Retrieves statically precomputed daily market benchmark data asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/market_benchmark_daily", cast_to=SectorPrecomputedMarketBenchmarkDailyResponse)
+
+    async def get_precomputed_sector_advice_daily(self) -> SectorPrecomputedSectorAdviceDailyResponse:
+        """Retrieves statically precomputed daily sector advice data asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/sector_advice_daily", cast_to=SectorPrecomputedSectorAdviceDailyResponse)
+
+    async def get_precomputed_sector_health_radar(self) -> SectorPrecomputedSectorHealthRadarResponse:
+        """Retrieves statically precomputed sector health radar data asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/sector_health_radar", cast_to=SectorPrecomputedSectorHealthRadarResponse)
+
+    async def get_precomputed_sector_horizon_metrics(self) -> SectorPrecomputedSectorHorizonMetricsResponse:
+        """Retrieves statically precomputed sector horizon metrics data asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/sector_horizon_metrics", cast_to=SectorPrecomputedSectorHorizonMetricsResponse)
+
+    async def get_precomputed_theme_state_daily(self) -> SectorPrecomputedThemeStateDailyResponse:
+        """Retrieves statically precomputed daily theme state data asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/theme_state_daily", cast_to=SectorPrecomputedThemeStateDailyResponse)

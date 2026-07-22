@@ -409,6 +409,36 @@ class SectorPrecomputedManifestResponse(DojoModel):
     data: Dict[str, Any] | None = None
 
 
+class SectorPrecomputedFundamentalsPeriodResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorPrecomputedMarketBenchmarkDailyResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorPrecomputedSectorAdviceDailyResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorPrecomputedSectorHealthRadarResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorPrecomputedSectorHorizonMetricsResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class SectorPrecomputedThemeStateDailyResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
 # --- Analysis ---
 class AnalysisMarketDynamicsResponse(DojoModel):
     total_num: int | None = None
