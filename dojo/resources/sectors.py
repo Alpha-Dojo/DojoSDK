@@ -11,14 +11,13 @@ from dojo.types.models import (
     SectorSymbolRelationCreateResponse,
     SectorPrecomputedConstituentsResponse,
     SectorPrecomputedDailyResponse,
-    SectorPrecomputedManifestResponse,
     SectorPrecomputedTickerDailyResponse,
     SectorPrecomputedFundamentalsPeriodResponse,
     SectorPrecomputedMarketBenchmarkDailyResponse,
-    SectorPrecomputedSectorAdviceDailyResponse,
-    SectorPrecomputedSectorHealthRadarResponse,
     SectorPrecomputedSectorHorizonMetricsResponse,
     SectorPrecomputedThemeStateDailyResponse,
+    SectorPrecomputedSectorAlphaFactorsDailyResponse,
+    SectorPrecomputedTickerAlphaFactorsDailyResponse,
 )
 
 
@@ -197,10 +196,6 @@ class Sectors(SyncAPIResource):
         """Retrieves statically precomputed daily ticker performance."""
         return self._get("/api/qdata/v1/sector/precomputed/ticker_daily", cast_to=SectorPrecomputedTickerDailyResponse)
 
-    def get_precomputed_manifest(self) -> SectorPrecomputedManifestResponse:
-        """Retrieves sector precomputed snapshot manifest metadata."""
-        return self._get("/api/qdata/v1/sector/precomputed/manifest", cast_to=SectorPrecomputedManifestResponse)
-
     def get_precomputed_fundamentals_period(self) -> SectorPrecomputedFundamentalsPeriodResponse:
         """Retrieves statically precomputed fundamentals period data."""
         return self._get("/api/qdata/v1/sector/precomputed/fundamentals_period", cast_to=SectorPrecomputedFundamentalsPeriodResponse)
@@ -209,13 +204,78 @@ class Sectors(SyncAPIResource):
         """Retrieves statically precomputed daily market benchmark data."""
         return self._get("/api/qdata/v1/sector/precomputed/market_benchmark_daily", cast_to=SectorPrecomputedMarketBenchmarkDailyResponse)
 
-    def get_precomputed_sector_advice_daily(self) -> SectorPrecomputedSectorAdviceDailyResponse:
-        """Retrieves statically precomputed daily sector advice data."""
-        return self._get("/api/qdata/v1/sector/precomputed/sector_advice_daily", cast_to=SectorPrecomputedSectorAdviceDailyResponse)
+    def get_precomputed_sector_alpha_factors_daily(
+        self,
+        *,
+        trade_date: str | None = None,
+        market: str | None = None,
+        scope: str | None = None,
+        level1_id: str | None = None,
+        level2_id: str | None = None,
+        level3_id: str | None = None,
+        link_key: str | None = None,
+        theme_row_status: str | None = None,
+        horizon_row_status: str | None = None,
+        factor_rule: str | None = None,
+    ) -> SectorPrecomputedSectorAlphaFactorsDailyResponse:
+        """Retrieves statically precomputed sector alpha factors daily data."""
+        params: dict[str, Any] = {}
+        if trade_date is not None:
+            params["trade_date"] = trade_date
+        if market is not None:
+            params["market"] = market
+        if scope is not None:
+            params["scope"] = scope
+        if level1_id is not None:
+            params["level1_id"] = level1_id
+        if level2_id is not None:
+            params["level2_id"] = level2_id
+        if level3_id is not None:
+            params["level3_id"] = level3_id
+        if link_key is not None:
+            params["link_key"] = link_key
+        if theme_row_status is not None:
+            params["theme_row_status"] = theme_row_status
+        if horizon_row_status is not None:
+            params["horizon_row_status"] = horizon_row_status
+        if factor_rule is not None:
+            params["factor_rule"] = factor_rule
+        return self._get("/api/qdata/v1/sector/precomputed/sector_alpha_factors_daily", cast_to=SectorPrecomputedSectorAlphaFactorsDailyResponse, options={"params": params})
 
-    def get_precomputed_sector_health_radar(self) -> SectorPrecomputedSectorHealthRadarResponse:
-        """Retrieves statically precomputed sector health radar data."""
-        return self._get("/api/qdata/v1/sector/precomputed/sector_health_radar", cast_to=SectorPrecomputedSectorHealthRadarResponse)
+    def get_precomputed_ticker_alpha_factors_daily(
+        self,
+        *,
+        trade_date: str | None = None,
+        market: str | None = None,
+        ticker: str | None = None,
+        level1_id: str | None = None,
+        level2_id: str | None = None,
+        level3_id: str | None = None,
+        role: str | None = None,
+        factor_rule: str | None = None,
+        row_status: str | None = None,
+    ) -> SectorPrecomputedTickerAlphaFactorsDailyResponse:
+        """Retrieves statically precomputed ticker alpha factors daily data."""
+        params: dict[str, Any] = {}
+        if trade_date is not None:
+            params["trade_date"] = trade_date
+        if market is not None:
+            params["market"] = market
+        if ticker is not None:
+            params["ticker"] = ticker
+        if level1_id is not None:
+            params["level1_id"] = level1_id
+        if level2_id is not None:
+            params["level2_id"] = level2_id
+        if level3_id is not None:
+            params["level3_id"] = level3_id
+        if role is not None:
+            params["role"] = role
+        if factor_rule is not None:
+            params["factor_rule"] = factor_rule
+        if row_status is not None:
+            params["row_status"] = row_status
+        return self._get("/api/qdata/v1/sector/precomputed/ticker_alpha_factors_daily", cast_to=SectorPrecomputedTickerAlphaFactorsDailyResponse, options={"params": params})
 
     def get_precomputed_sector_horizon_metrics(self) -> SectorPrecomputedSectorHorizonMetricsResponse:
         """Retrieves statically precomputed sector horizon metrics data."""
@@ -224,6 +284,10 @@ class Sectors(SyncAPIResource):
     def get_precomputed_theme_state_daily(self) -> SectorPrecomputedThemeStateDailyResponse:
         """Retrieves statically precomputed daily theme state data."""
         return self._get("/api/qdata/v1/sector/precomputed/theme_state_daily", cast_to=SectorPrecomputedThemeStateDailyResponse)
+
+    def get_precomputed_manifest(self) -> Any:
+        """Retrieves statically precomputed manifest metadata."""
+        return self._get("/api/qdata/v1/sector/precomputed/manifest", cast_to=None)
 
 
 class AsyncSectors(AsyncAPIResource):
@@ -403,10 +467,6 @@ class AsyncSectors(AsyncAPIResource):
         """Retrieves statically precomputed daily ticker performance asynchronously."""
         return await self._get("/api/qdata/v1/sector/precomputed/ticker_daily", cast_to=SectorPrecomputedTickerDailyResponse)
 
-    async def get_precomputed_manifest(self) -> SectorPrecomputedManifestResponse:
-        """Retrieves sector precomputed snapshot manifest metadata asynchronously."""
-        return await self._get("/api/qdata/v1/sector/precomputed/manifest", cast_to=SectorPrecomputedManifestResponse)
-
     async def get_precomputed_fundamentals_period(self) -> SectorPrecomputedFundamentalsPeriodResponse:
         """Retrieves statically precomputed fundamentals period data asynchronously."""
         return await self._get("/api/qdata/v1/sector/precomputed/fundamentals_period", cast_to=SectorPrecomputedFundamentalsPeriodResponse)
@@ -415,13 +475,78 @@ class AsyncSectors(AsyncAPIResource):
         """Retrieves statically precomputed daily market benchmark data asynchronously."""
         return await self._get("/api/qdata/v1/sector/precomputed/market_benchmark_daily", cast_to=SectorPrecomputedMarketBenchmarkDailyResponse)
 
-    async def get_precomputed_sector_advice_daily(self) -> SectorPrecomputedSectorAdviceDailyResponse:
-        """Retrieves statically precomputed daily sector advice data asynchronously."""
-        return await self._get("/api/qdata/v1/sector/precomputed/sector_advice_daily", cast_to=SectorPrecomputedSectorAdviceDailyResponse)
+    async def get_precomputed_sector_alpha_factors_daily(
+        self,
+        *,
+        trade_date: str | None = None,
+        market: str | None = None,
+        scope: str | None = None,
+        level1_id: str | None = None,
+        level2_id: str | None = None,
+        level3_id: str | None = None,
+        link_key: str | None = None,
+        theme_row_status: str | None = None,
+        horizon_row_status: str | None = None,
+        factor_rule: str | None = None,
+    ) -> SectorPrecomputedSectorAlphaFactorsDailyResponse:
+        """Retrieves statically precomputed sector alpha factors daily data asynchronously."""
+        params: dict[str, Any] = {}
+        if trade_date is not None:
+            params["trade_date"] = trade_date
+        if market is not None:
+            params["market"] = market
+        if scope is not None:
+            params["scope"] = scope
+        if level1_id is not None:
+            params["level1_id"] = level1_id
+        if level2_id is not None:
+            params["level2_id"] = level2_id
+        if level3_id is not None:
+            params["level3_id"] = level3_id
+        if link_key is not None:
+            params["link_key"] = link_key
+        if theme_row_status is not None:
+            params["theme_row_status"] = theme_row_status
+        if horizon_row_status is not None:
+            params["horizon_row_status"] = horizon_row_status
+        if factor_rule is not None:
+            params["factor_rule"] = factor_rule
+        return await self._get("/api/qdata/v1/sector/precomputed/sector_alpha_factors_daily", cast_to=SectorPrecomputedSectorAlphaFactorsDailyResponse, options={"params": params})
 
-    async def get_precomputed_sector_health_radar(self) -> SectorPrecomputedSectorHealthRadarResponse:
-        """Retrieves statically precomputed sector health radar data asynchronously."""
-        return await self._get("/api/qdata/v1/sector/precomputed/sector_health_radar", cast_to=SectorPrecomputedSectorHealthRadarResponse)
+    async def get_precomputed_ticker_alpha_factors_daily(
+        self,
+        *,
+        trade_date: str | None = None,
+        market: str | None = None,
+        ticker: str | None = None,
+        level1_id: str | None = None,
+        level2_id: str | None = None,
+        level3_id: str | None = None,
+        role: str | None = None,
+        factor_rule: str | None = None,
+        row_status: str | None = None,
+    ) -> SectorPrecomputedTickerAlphaFactorsDailyResponse:
+        """Retrieves statically precomputed ticker alpha factors daily data asynchronously."""
+        params: dict[str, Any] = {}
+        if trade_date is not None:
+            params["trade_date"] = trade_date
+        if market is not None:
+            params["market"] = market
+        if ticker is not None:
+            params["ticker"] = ticker
+        if level1_id is not None:
+            params["level1_id"] = level1_id
+        if level2_id is not None:
+            params["level2_id"] = level2_id
+        if level3_id is not None:
+            params["level3_id"] = level3_id
+        if role is not None:
+            params["role"] = role
+        if factor_rule is not None:
+            params["factor_rule"] = factor_rule
+        if row_status is not None:
+            params["row_status"] = row_status
+        return await self._get("/api/qdata/v1/sector/precomputed/ticker_alpha_factors_daily", cast_to=SectorPrecomputedTickerAlphaFactorsDailyResponse, options={"params": params})
 
     async def get_precomputed_sector_horizon_metrics(self) -> SectorPrecomputedSectorHorizonMetricsResponse:
         """Retrieves statically precomputed sector horizon metrics data asynchronously."""
@@ -430,3 +555,7 @@ class AsyncSectors(AsyncAPIResource):
     async def get_precomputed_theme_state_daily(self) -> SectorPrecomputedThemeStateDailyResponse:
         """Retrieves statically precomputed daily theme state data asynchronously."""
         return await self._get("/api/qdata/v1/sector/precomputed/theme_state_daily", cast_to=SectorPrecomputedThemeStateDailyResponse)
+
+    async def get_precomputed_manifest(self) -> Any:
+        """Retrieves statically precomputed manifest metadata asynchronously."""
+        return await self._get("/api/qdata/v1/sector/precomputed/manifest", cast_to=None)
