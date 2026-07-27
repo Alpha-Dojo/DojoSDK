@@ -73,7 +73,14 @@ class AsyncDojo(AsyncAPIClient):
 
         self._data_source = None
         if not self._online:
-            self._data_source = HuggingFaceKlineDataSource(HFConfig.from_env())
+            hf_config = HFConfig.from_env()
+            if "DOJO_HF_DOWNLOAD_TIMEOUT" not in os.environ:
+                timeout_seconds = float(timeout) if isinstance(timeout, (int, float)) else timeout.read
+                if timeout_seconds is not None and timeout_seconds > 0:
+                    hf_config.download_timeout_seconds = timeout_seconds
+            if "DOJO_HF_MAX_RETRIES" not in os.environ:
+                hf_config.max_download_retries = max(0, max_retries)
+            self._data_source = HuggingFaceKlineDataSource(hf_config)
 
         base_url = base_url or os.environ.get("DOJO_BASE_URL") or "https://api.flowhale.ai"
 

@@ -8,113 +8,20 @@ from dojo.datasource.config import HFConfig
 from dojo.datasource.registry import HFEndpointSpec, resolve
 from dojo._exceptions import OfflineDataNotAvailableError
 from dojo.logging import logger
-import ctypes
 import threading
 import time
-
-
-class DownloadStalledError(Exception):
-    pass
-
-
-def _async_raise(tid, exctype):
-    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), ctypes.py_object(exctype))
-    if res == 0:
-        pass
-    elif res != 1:
-        ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), None)
-
-
-_active_downloads = {}
-_active_downloads_lock = threading.Lock()
-
-
-try:
-    import huggingface_hub.utils._progress
-
-    original_tqdm = huggingface_hub.utils._progress.tqdm
-
-    class WatchdogTqdm(original_tqdm):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._tid = threading.get_ident()
-            with _active_downloads_lock:
-                _active_downloads[self._tid] = {"last_update_time": time.time(), "last_n": getattr(self, "n", 0)}
-
-        def update(self, n=1):
-            super().update(n)
-            with _active_downloads_lock:
-                if self._tid in _active_downloads:
-                    if getattr(self, "n", 0) > _active_downloads[self._tid].get("last_n", 0):
-                        _active_downloads[self._tid]["last_n"] = getattr(self, "n", 0)
-                        _active_downloads[self._tid]["last_update_time"] = time.time()
-
-        def close(self):
-            super().close()
-            with _active_downloads_lock:
-                if self._tid in _active_downloads:
-                    del _active_downloads[self._tid]
-
-    huggingface_hub.utils._progress.tqdm = WatchdogTqdm
-except ImportError:
-    pass
-
-# try:
-#     import modelscope.hub.file_download
-#     original_ms_tqdm = modelscope.hub.file_download.tqdm
-
-#     class WatchdogTqdmMS(original_ms_tqdm):
-#         def __init__(self, *args, **kwargs):
-#             super().__init__(*args, **kwargs)
-#             self._tid = threading.get_ident()
-#             with _active_downloads_lock:
-#                 _active_downloads[self._tid] = {"last_update_time": time.time(), "last_n": getattr(self, "n", 0)}
-
-#         def update(self, n=1):
-#             super().update(n)
-#             with _active_downloads_lock:
-#                 if self._tid in _active_downloads:
-#                     if getattr(self, "n", 0) > _active_downloads[self._tid].get("last_n", 0):
-#                         _active_downloads[self._tid]["last_n"] = getattr(self, "n", 0)
-#                         _active_downloads[self._tid]["last_update_time"] = time.time()
-
-#         def close(self):
-#             super().close()
-#             with _active_downloads_lock:
-#                 if self._tid in _active_downloads:
-#                     del _active_downloads[self._tid]
-
-#     modelscope.hub.file_download.tqdm = WatchdogTqdmMS
-# except Exception:
-#     pass
-
-_watchdog_started = False
-_watchdog_start_lock = threading.Lock()
-
-
-def _download_watchdog_loop():
-    while True:
-        time.sleep(1)
-        now = time.time()
-        with _active_downloads_lock:
-            for tid, info in list(_active_downloads.items()):
-                if now - info["last_update_time"] > 10:
-                    _async_raise(tid, DownloadStalledError)
-                    del _active_downloads[tid]
-
-
-def _start_watchdog():
-    global _watchdog_started
-    with _watchdog_start_lock:
-        if not _watchdog_started:
-            t = threading.Thread(target=_download_watchdog_loop, daemon=True, name="DojoSDK-DownloadWatchdog")
-            t.start()
-            _watchdog_started = True
+import weakref
 
 
 class HuggingFaceDataSource:
     _table_cache: dict[str, Any] = {}
     _df_cache: dict[str, Any] = {}
+    _download_path_cache: dict[tuple[str, ...], str] = {}
+    _download_locks: weakref.WeakValueDictionary[
+        tuple[str, ...],
+        threading.Lock,
+    ] = weakref.WeakValueDictionary()
+    _download_locks_guard = threading.Lock()
 
     def __init__(self, config: HFConfig | None = None) -> None:
         import threading
@@ -123,7 +30,6 @@ class HuggingFaceDataSource:
         self._bg_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._cleanup_lock = threading.Lock()
-        _start_watchdog()
 
     def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
         spec = resolve(path)
@@ -255,62 +161,156 @@ class HuggingFaceDataSource:
         except KeyError as e:
             raise OfflineDataNotAvailableError(f"Offline file path template {template!r} is missing required parameter {e}") from e
 
+    @classmethod
+    def _download_lock_for(cls, key: tuple[str, ...]) -> threading.Lock:
+        with cls._download_locks_guard:
+            return cls._download_locks.setdefault(key, threading.Lock())
+
+    @staticmethod
+    def _is_transient_download_error(error: Exception) -> bool:
+        import httpx
+        from huggingface_hub.errors import HfHubHTTPError
+
+        if isinstance(
+            error,
+            (
+                httpx.TimeoutException,
+                httpx.TransportError,
+                TimeoutError,
+                ConnectionError,
+            ),
+        ):
+            return True
+        if not isinstance(error, HfHubHTTPError):
+            return False
+        response = getattr(error, "response", None)
+        status_code = getattr(response, "status_code", None)
+        return status_code in {408, 429} or (isinstance(status_code, int) and status_code >= 500)
+
+    def _download_with_retries(
+        self,
+        *,
+        backend: str,
+        repo_id: str | None,
+        ms_repo_id: str | None,
+        filename: str | None,
+        kwargs: dict[str, Any],
+    ) -> str:
+        if backend == "modelscope":
+            from modelscope.hub.api import HubApi
+            from modelscope.hub.file_download import dataset_file_download
+
+            api = HubApi()
+            if self._cfg.modelscope_token:
+                api.login(self._cfg.modelscope_token)
+
+            ms_revision = kwargs.get("revision", "master")
+            if ms_revision == "main":
+                ms_revision = "master"
+
+            local_files_only = kwargs.get("local_files_only", False)
+            if not local_files_only:
+                try:
+                    files = api.get_dataset_files(
+                        ms_repo_id,
+                        revision=ms_revision,
+                    )
+                    for item in files:
+                        if item.get("Path") == filename and item.get("Revision"):
+                            ms_revision = item["Revision"]
+                            break
+                except Exception as error:
+                    logger.debug(f"Failed to fetch dataset files for {ms_repo_id}: " f"{error}")
+
+            def download() -> str:
+                return str(
+                    dataset_file_download(
+                        dataset_id=ms_repo_id,
+                        file_path=filename,
+                        revision=ms_revision,
+                        token=self._cfg.modelscope_token,
+                        local_files_only=local_files_only,
+                    )
+                )
+
+        else:
+            from huggingface_hub import constants, hf_hub_download
+
+            constants.HF_HUB_DOWNLOAD_TIMEOUT = max(
+                1,
+                int(self._cfg.download_timeout_seconds),
+            )
+            download_kwargs = dict(kwargs)
+            download_kwargs.setdefault(
+                "etag_timeout",
+                self._cfg.etag_timeout_seconds,
+            )
+
+            def download() -> str:
+                return str(hf_hub_download(**download_kwargs))
+
+        attempts = max(0, int(self._cfg.max_download_retries)) + 1
+        for attempt in range(1, attempts + 1):
+            started_at = time.monotonic()
+            try:
+                local_path = download()
+                logger.debug(
+                    "Offline dataset resolved: backend=%s repo=%s " "file=%s attempt=%s elapsed=%.3fs",
+                    backend,
+                    repo_id,
+                    filename,
+                    attempt,
+                    time.monotonic() - started_at,
+                )
+                return local_path
+            except Exception as error:
+                if attempt >= attempts or not self._is_transient_download_error(error):
+                    raise
+                delay = min(0.5 * (2 ** (attempt - 1)), 4.0)
+                logger.warning(
+                    "Transient offline download failure: backend=%s " "repo=%s file=%s attempt=%s/%s retry_in=%.1fs " "error=%s",
+                    backend,
+                    repo_id,
+                    filename,
+                    attempt,
+                    attempts,
+                    delay,
+                    type(error).__name__,
+                )
+                time.sleep(delay)
+        raise RuntimeError("unreachable offline download retry state")
+
     def _download_and_cleanup(self, **kwargs) -> str:
-        from huggingface_hub import hf_hub_download
         from dojo.datasource.network import resolve_backend
         import os
-        import threading
-        import time
 
-        tid = threading.get_ident()
         repo_id = kwargs.get("repo_id")
         ms_repo_id = kwargs.pop("ms_repo_id", repo_id)
         filename = kwargs.get("filename")
 
         backend = resolve_backend(self._cfg)
-
-        while True:
-            try:
-                if backend == "huggingface":
-                    with _active_downloads_lock:
-                        _active_downloads[tid] = {"last_update_time": time.time(), "last_n": 0}
-
-                if backend == "modelscope":
-                    from modelscope.hub.file_download import dataset_file_download
-                    from modelscope.hub.api import HubApi
-
-                    api = HubApi()
-                    if self._cfg.modelscope_token:
-                        api.login(self._cfg.modelscope_token)
-
-                    ms_revision = kwargs.get("revision", "master")
-                    if ms_revision == "main":
-                        ms_revision = "master"
-
-                    local_files_only = kwargs.get("local_files_only", False)
-                    if not local_files_only:
-                        try:
-                            files = api.get_dataset_files(ms_repo_id, revision=ms_revision)
-                            for f in files:
-                                if f.get("Path") == filename and f.get("Revision"):
-                                    ms_revision = f["Revision"]
-                                    break
-                        except Exception as e:
-                            logger.debug(f"Failed to fetch dataset files for {ms_repo_id}: {e}")
-                    local_path = dataset_file_download(
-                        dataset_id=ms_repo_id, file_path=filename, revision=ms_revision, token=self._cfg.modelscope_token, local_files_only=kwargs.get("local_files_only", False)
-                    )
-                else:
-                    local_path = hf_hub_download(**kwargs)
-                break
-            except DownloadStalledError:
-                logger.warning(f"Download for {repo_id}/{filename} stalled for >10s. Restarting {backend} download...")
-                time.sleep(1)
-            finally:
-                if backend == "huggingface":
-                    with _active_downloads_lock:
-                        if tid in _active_downloads:
-                            del _active_downloads[tid]
+        key = (
+            backend,
+            str(repo_id or ""),
+            str(ms_repo_id or ""),
+            str(kwargs.get("revision") or ""),
+            str(filename or ""),
+            str(kwargs.get("cache_dir") or ""),
+        )
+        force_download = bool(kwargs.get("force_download"))
+        lock = self._download_lock_for(key)
+        with lock:
+            cached_path = self._download_path_cache.get(key)
+            if not force_download and cached_path is not None and os.path.exists(cached_path):
+                return cached_path
+            local_path = self._download_with_retries(
+                backend=backend,
+                repo_id=repo_id,
+                ms_repo_id=ms_repo_id,
+                filename=filename,
+                kwargs=kwargs,
+            )
+            self._download_path_cache[key] = local_path
 
         if not repo_id:
             return local_path

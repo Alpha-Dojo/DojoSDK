@@ -165,18 +165,6 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         json_columns=[],
         envelope="list",
     ),
-    "/api/qdata/v1/sector/precomputed/sector_alpha_factors_daily": HFEndpointSpec(
-        repo_id="AlphaDojo/dojo_sector_precomputed",
-        path_template="sector_alpha_factors_daily.parquet",
-        json_columns=[],
-        envelope="list",
-    ),
-    "/api/qdata/v1/sector/precomputed/ticker_alpha_factors_daily": HFEndpointSpec(
-        repo_id="AlphaDojo/dojo_sector_precomputed",
-        path_template="ticker_alpha_factors_daily.parquet",
-        json_columns=[],
-        envelope="list",
-    ),
     "/api/qdata/v1/sector/precomputed/sector_horizon_metrics": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_sector_precomputed",
         path_template="sector_horizon_metrics.parquet",
