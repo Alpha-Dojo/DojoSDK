@@ -15,7 +15,10 @@ def cleanup_ms_snapshots(snapshots_dir, current_commit):
 
 
 # Create dummy dirs
-os.makedirs("dummy_repo/snapshots/commit1")
-os.makedirs("dummy_repo/snapshots/commit2")
-cleanup_ms_snapshots("dummy_repo/snapshots", "commit2")
-print("Remaining:", os.listdir("dummy_repo/snapshots"))
+os.makedirs("dummy_repo/snapshots/commit1", exist_ok=True)
+os.makedirs("dummy_repo/snapshots/commit2", exist_ok=True)
+try:
+    cleanup_ms_snapshots("dummy_repo/snapshots", "commit2")
+    print("Remaining:", os.listdir("dummy_repo/snapshots"))
+finally:
+    shutil.rmtree("dummy_repo", ignore_errors=True)

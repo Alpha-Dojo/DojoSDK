@@ -591,7 +591,31 @@ class HuggingFaceDataSource:
         return result
 
 
-class HuggingFaceKlineDataSource(HuggingFaceDataSource):
+class StockDataSource(HuggingFaceDataSource):
+    """
+    A specialized HuggingFaceDataSource for stock endpoints that adapts stock-specific request parameters
+    (e.g., mapping `symbols` parameter to `ticker` column filtering for `/api/qdata/v1/stock/ystock_info`).
+    """
+
+    def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
+        params = dict(params) if params else {}
+
+        if path == "/api/qdata/v1/stock/ystock_info":
+            symbols_val = params.get("symbols")
+            if symbols_val is None and isinstance(json, dict):
+                symbols_val = json.get("symbols")
+
+            if symbols_val is not None and "ticker" not in params:
+                if isinstance(symbols_val, str) and "," in symbols_val:
+                    ticker_val = [s.strip() for s in symbols_val.split(",") if s.strip()]
+                else:
+                    ticker_val = symbols_val
+                params["ticker"] = ticker_val
+
+        return super().fetch(method=method, path=path, params=params, json=json)
+
+
+class HuggingFaceKlineDataSource(StockDataSource):
     """
     A specialized HuggingFaceDataSource that pre-groups kline data by symbol
     for O(1) fetch performance during offline simulation.
