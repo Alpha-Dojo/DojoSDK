@@ -621,92 +621,70 @@ class HuggingFaceKlineDataSource(StockDataSource):
     for O(1) fetch performance during offline simulation.
     """
 
-    def __init__(self, config: HFConfig | None = None) -> None:
-        super().__init__(config)
-        self._grouped_cache: dict[str, dict[str, list[dict]]] = {}
-
     def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
         spec = resolve(path)
         if not spec:
             raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
+        if path != "/api/qdata/v1/stock/kline":
+            return super().fetch(method=method, path=path, params=params, json=json)
 
-        return super().fetch(method=method, path=path, params=params, json=json)
+        merged = dict(params)
+        if isinstance(json, dict):
+            merged.update(json)
+
+        df = self.fetch_df(path=path)
+        symbol = merged.get(spec.symbol_param)
+        if symbol is not None:
+            symbols = symbol.split(",") if isinstance(symbol, str) and "," in symbol else symbol
+            if isinstance(symbols, (list, tuple, set)):
+                symbols = list(dict.fromkeys(symbols))
+            if df.index.name in {spec.symbol_field, f"index_{spec.symbol_field}"}:
+                if isinstance(symbols, list):
+                    available = [value for value in symbols if value in df.index]
+                    df = df.loc[available] if available else df.iloc[:0]
+                else:
+                    df = df.loc[[symbols]] if symbols in df.index else df.iloc[:0]
+            else:
+                df = df[df[spec.symbol_field].isin(symbols) if isinstance(symbols, list) else df[spec.symbol_field].eq(symbols)]
+
+        ignored = {spec.limit_param, spec.start_param, spec.end_param, spec.fields_param, spec.symbol_param, "index"}
+        for key, value in merged.items():
+            if key in ignored or value is None or key not in df.columns:
+                continue
+            df = df[df[key].isin(value) if isinstance(value, (list, tuple, set)) else df[key].eq(value)]
+
+        if spec.time_field and spec.time_field in df.columns:
+            if merged.get(spec.start_param) is not None:
+                df = df[df[spec.time_field].ge(merged[spec.start_param])]
+            if merged.get(spec.end_param) is not None:
+                df = df[df[spec.time_field].le(merged[spec.end_param])]
+            df = df.sort_values(spec.time_field, ascending=not spec.order_desc)
+
+        index = merged.get("index")
+        if isinstance(index, int) and not isinstance(index, bool):
+            df = df.iloc[[index]] if -len(df) <= index < len(df) else df.iloc[:0]
+
+        limit = merged.get(spec.limit_param)
+        if isinstance(limit, int) and limit > 0:
+            df = df.iloc[:limit]
+
+        if spec.fields_param and merged.get(spec.fields_param):
+            fields = [field for field in merged[spec.fields_param] if field in df.columns]
+            df = df[fields]
+
+        import datetime
+
+        rows = df.to_dict(orient="records")
+        for row in rows:
+            for key, value in row.items():
+                if isinstance(value, (datetime.datetime, datetime.date)):
+                    row[key] = value.isoformat()
+                elif pd.isna(value):
+                    row[key] = None
+
+        data: Any = {"total_num": len(rows), "data": rows} if spec.envelope == "list" else (rows[0] if rows else {})
+        return {"code": 0, "message": "ok", "data": data}
 
     def preload(self, paths: list[str]) -> None:
         super().preload(paths)
         self.fetch_df(path="/api/qdata/v1/stock/kline", params={}, refresh=True)
-
-    def _fast_fetch_kline(self, path: str, spec: Any, params: dict[str, Any], json_body: Any | None) -> Any:
-        merged = dict(params)
-        if isinstance(json_body, dict):
-            merged.update(json_body)
-
-        # 1. Ensure the underlying dataset is loaded and cached
-        table = self._load_dataset(spec, merged)
-        cache_key = f"{spec.repo_id}/{self._render_template(spec.path_template, merged)}"
-
-        # 2. Pre-group data if not already done
-        if cache_key not in self._grouped_cache:
-            self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
-
-        grouped_data = self._grouped_cache[cache_key]
-
-        # 3. Resolve requested symbols
-        symbols = merged.get(spec.symbol_param, "")
-        if isinstance(symbols, str):
-            symbols = symbols.split(",") if "," in symbols else [symbols]
-        elif not isinstance(symbols, (list, tuple, set)):
-            symbols = [symbols]
-
-        # 4. O(1) Fast fetch
-        limit = merged.get(spec.limit_param)
-        results = []
-        for sym in symbols:
-            if not sym:
-                continue
-            sym_rows = grouped_data.get(sym, [])
-            if isinstance(limit, int) and limit > 0:
-                sym_rows = sym_rows[:limit]
-            results.extend(sym_rows)
-
-        data: Any = {"total_num": len(results), "data": results} if spec.envelope == "list" else (results[0] if results else {})
-        return {"code": 0, "message": "ok", "data": data}
-
-    def _build_grouped_data(self, table, spec) -> dict[str, list[dict]]:
-        import datetime
-        import json
-        from collections import defaultdict
-
-        rows = table.to_pylist()
-
-        json_cols = spec.json_columns or []
-        if not json_cols and table.schema.metadata and b"dojosdk:json_columns" in table.schema.metadata:
-            json_cols = table.schema.metadata[b"dojosdk:json_columns"].decode("utf-8").split(",")
-
-        json_cols_set = set(json_cols)
-
-        for row in rows:
-            for col in json_cols_set:
-                val = row.get(col)
-                if isinstance(val, str):
-                    try:
-                        row[col] = json.loads(val)
-                    except json.JSONDecodeError:
-                        pass
-
-            for k, v in row.items():
-                if isinstance(v, (datetime.datetime, datetime.date)):
-                    row[k] = v.isoformat()
-
-        grouped = defaultdict(list)
-        sym_field = spec.symbol_field
-        for row in rows:
-            sym = row.get(sym_field)
-            if sym is not None:
-                grouped[sym].append(row)
-
-        if spec.time_field:
-            for sym, sym_rows in grouped.items():
-                sym_rows.sort(key=lambda x: x.get(spec.time_field, ""), reverse=spec.order_desc)
-
-        return dict(grouped)
