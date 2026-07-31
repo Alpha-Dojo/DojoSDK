@@ -29,6 +29,7 @@ class HuggingFaceDataSource:
         self._cfg = config or HFConfig.from_env()
         self._bg_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+        self._preload_cancel_event = threading.Event()
         self._cleanup_lock = threading.Lock()
 
     def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
@@ -513,15 +514,22 @@ class HuggingFaceDataSource:
             self._bg_thread.join(timeout=2.0)
             logger.info("Stopped background sync thread.")
 
-    def preload(self, paths: list[str]) -> None:
+    def cancel_preload(self) -> None:
+        """Ask an in-flight preload to stop scheduling and waiting for work."""
+        self._preload_cancel_event.set()
+
+    def preload(self, paths: list[str]) -> bool:
         """Preload specific resources into cache ahead of time."""
+        import queue
+
         from dojo.datasource.registry import resolve
         from tqdm import tqdm
-        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         total = len(paths)
         if total == 0:
-            return
+            return True
+        cancel_event = threading.Event()
+        self._preload_cancel_event = cancel_event
 
         specs = [(i, path, resolve(path)) for i, path in enumerate(paths, start=1)]
         valid_specs = [(i, p, s) for i, p, s in specs if s]
@@ -539,10 +547,53 @@ class HuggingFaceDataSource:
             except Exception as e:
                 logger.error(f"[{i}/{total}] 预加载 {path} 失败: {e}")
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(_do_preload, i, path, spec) for i, path, spec in valid_specs]
-            for _ in tqdm(as_completed(futures), total=len(futures), desc="Preloading DojoSDK data"):
-                pass
+        work_queue: queue.Queue[tuple[int, str, HFEndpointSpec]] = queue.Queue()
+        completion_queue: queue.Queue[None] = queue.Queue()
+        for item in valid_specs:
+            work_queue.put(item)
+
+        def _worker() -> None:
+            while not cancel_event.is_set():
+                try:
+                    item = work_queue.get_nowait()
+                except queue.Empty:
+                    return
+                try:
+                    if not cancel_event.is_set():
+                        _do_preload(*item)
+                finally:
+                    completion_queue.put(None)
+
+        workers = [
+            threading.Thread(
+                target=_worker,
+                daemon=True,
+                name=f"DojoSDK-Preload-{index + 1}",
+            )
+            for index in range(min(10, len(valid_specs)))
+        ]
+        for worker in workers:
+            worker.start()
+
+        completed = 0
+        progress = tqdm(total=len(valid_specs), desc="Preloading DojoSDK data")
+        try:
+            while completed < len(valid_specs):
+                if cancel_event.is_set():
+                    logger.info("DojoSDK data preload cancelled.")
+                    return False
+                try:
+                    completion_queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                completed += 1
+                progress.update(1)
+        except BaseException:
+            cancel_event.set()
+            raise
+        finally:
+            progress.close()
+        return True
 
     def cleanup_cache(self) -> dict:
         """
@@ -685,6 +736,30 @@ class HuggingFaceKlineDataSource(StockDataSource):
         data: Any = {"total_num": len(rows), "data": rows} if spec.envelope == "list" else (rows[0] if rows else {})
         return {"code": 0, "message": "ok", "data": data}
 
-    def preload(self, paths: list[str]) -> None:
-        super().preload(paths)
-        self.fetch_df(path="/api/qdata/v1/stock/kline", params={}, refresh=True)
+    def preload(self, paths: list[str]) -> bool:
+        if not super().preload(paths):
+            return False
+        cancel_event = self._preload_cancel_event
+        completed = threading.Event()
+        errors: list[Exception] = []
+
+        def _warm_kline() -> None:
+            try:
+                self.fetch_df(path="/api/qdata/v1/stock/kline", params={}, refresh=True)
+            except Exception as error:
+                errors.append(error)
+            finally:
+                completed.set()
+
+        threading.Thread(
+            target=_warm_kline,
+            daemon=True,
+            name="DojoSDK-Preload-Kline",
+        ).start()
+        while not completed.wait(timeout=0.1):
+            if cancel_event.is_set():
+                logger.info("DojoSDK kline preload cancelled.")
+                return False
+        if errors:
+            raise errors[0]
+        return True

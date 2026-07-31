@@ -130,6 +130,12 @@ class Dojo(SyncAPIClient):
         if self._data_source is not None and hasattr(self._data_source, "stop_background_sync"):
             self._data_source.stop_background_sync()
 
+    def cancel_preload_offline_data(self) -> None:
+        """Cancel an in-flight offline preload if the data source supports it."""
+        cancel = getattr(self._data_source, "cancel_preload", None)
+        if callable(cancel):
+            cancel()
+
     def preload_offline_data(self, paths: list[str] | None = None) -> None:
         """Preload specific offline data resources into memory to avoid latency on first request."""
         if self._data_source is not None and hasattr(self._data_source, "preload"):

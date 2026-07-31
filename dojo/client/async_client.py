@@ -130,6 +130,12 @@ class AsyncDojo(AsyncAPIClient):
         if self._data_source is not None and hasattr(self._data_source, "stop_background_sync"):
             self._data_source.stop_background_sync()
 
+    def cancel_preload_offline_data(self) -> None:
+        """Cancel an in-flight offline preload if the data source supports it."""
+        cancel = getattr(self._data_source, "cancel_preload", None)
+        if callable(cancel):
+            cancel()
+
     async def preload_offline_data(self, paths: list[str] | None = None) -> None:
         """Preload specific offline data resources into memory to avoid latency on first request."""
         if self._data_source is not None and hasattr(self._data_source, "preload"):
@@ -139,7 +145,11 @@ class AsyncDojo(AsyncAPIClient):
                 from dojo.datasource.registry import HF_REGISTRY
 
                 paths = list(HF_REGISTRY.keys())
-            await asyncio.to_thread(self._data_source.preload, paths)
+            try:
+                await asyncio.to_thread(self._data_source.preload, paths)
+            except asyncio.CancelledError:
+                self.cancel_preload_offline_data()
+                raise
 
     async def upload_dataset(self, dataset_name: str, local_folder: str, token: str | None = None, ms_token: str | None = None) -> None:
         """Uploads a local folder as a dataset to HuggingFace Hub and ModelScope using a background thread."""
