@@ -642,7 +642,121 @@ class HuggingFaceDataSource:
         return result
 
 
-class StockDataSource(HuggingFaceDataSource):
+class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
+    """
+    A specialized HuggingFaceDataSource for attribution factor analysis data.
+    Pre-computes 'sector_id_list' column on the Pandas DataFrame, caches it in memory,
+    and performs set-intersection filtering on pandas df.
+    """
+
+    def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
+        spec = resolve(path)
+        if not spec:
+            raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
+
+        if path != "/api/qdata/v1/analysis/attribution_factor":
+            return super().fetch(method=method, path=path, params=params, json=json)
+
+        merged = dict(params)
+        if isinstance(json, dict):
+            merged.update(json)
+
+        df = self._get_cached_attribution_factor_df(path)
+
+        # 1. sector_id filtering using sector_id_list
+        sector_id_param = merged.get("sector_id")
+        if sector_id_param is not None and "sector_id_list" in df.columns:
+            if isinstance(sector_id_param, (int, str)):
+                target_set = {s.strip() for s in str(sector_id_param).replace(",", "/").split("/") if s.strip()}
+            elif isinstance(sector_id_param, (list, tuple, set)):
+                target_set = set()
+                for item in sector_id_param:
+                    for s in str(item).replace(",", "/").split("/"):
+                        if s.strip():
+                            target_set.add(s.strip())
+            else:
+                target_set = set()
+
+            if target_set:
+                df = df[df["sector_id_list"].apply(lambda lst: bool(target_set.intersection(lst)))]
+
+        # 2. Generic column filters (e.g. market, factor_topic, role, etc.)
+        ignored = {spec.limit_param, spec.start_param, spec.end_param, spec.fields_param, "sector_id", "sector_id_list"}
+        for key, value in merged.items():
+            if key in ignored or value is None or key not in df.columns:
+                continue
+            if isinstance(value, (list, tuple, set)):
+                df = df[df[key].isin(value)]
+            else:
+                df = df[df[key].eq(value)]
+
+        # 3. Time filtering & sorting
+        if spec.time_field and spec.time_field in df.columns:
+            if merged.get(spec.start_param) is not None:
+                df = df[df[spec.time_field].ge(merged[spec.start_param])]
+            if merged.get(spec.end_param) is not None:
+                df = df[df[spec.time_field].le(merged[spec.end_param])]
+            df = df.sort_values(spec.time_field, ascending=not spec.order_desc)
+
+        # 4. Limit slicing
+        limit = merged.get(spec.limit_param)
+        if isinstance(limit, int) and limit > 0:
+            df = df.iloc[:limit]
+
+        # 5. Field projection
+        if spec.fields_param and merged.get(spec.fields_param):
+            fields = [field for field in merged[spec.fields_param] if field in df.columns]
+            df = df[fields]
+
+        # 6. Convert to dict list and parse JSON columns
+        rows = df.to_dict(orient="records")
+        json_cols = spec.json_columns or ["claim", "mechanism", "evidence", "affected_tickers", "attrs"]
+        import json as json_module
+        import datetime
+
+        for row in rows:
+            row.pop("sector_id_list", None)
+            for col in json_cols:
+                val = row.get(col)
+                if isinstance(val, str):
+                    try:
+                        row[col] = json_module.loads(val)
+                    except Exception:
+                        pass
+            for key, value in row.items():
+                if isinstance(value, (datetime.datetime, datetime.date)):
+                    row[key] = value.isoformat()
+                elif isinstance(value, (list, dict, tuple, set)):
+                    pass
+                elif pd.isna(value):
+                    row[key] = None
+
+        data: Any = {"total_num": len(rows), "data": rows} if spec.envelope == "list" else (rows[0] if rows else {})
+        return {"code": 0, "message": "ok", "data": data}
+
+    def _get_cached_attribution_factor_df(self, path: str) -> pd.DataFrame:
+        cache_key = f"attribution_factor_df:{path}"
+        if cache_key in self._df_cache:
+            return self._df_cache[cache_key].copy()
+
+        df = self.fetch_df(path=path)
+        if "sector_id" in df.columns:
+
+            def parse_sector_id_list(val):
+                if pd.isna(val) or val is None:
+                    return []
+                val_str = str(val).strip()
+                if not val_str:
+                    return []
+                return [s.strip() for s in val_str.split("/") if s.strip()]
+
+            df["sector_id_list"] = df["sector_id"].apply(parse_sector_id_list)
+
+        self._df_cache[cache_key] = df
+        return df.copy()
+
+
+class StockDataSource(HuggingFaceAttributionFactorDataSource):
     """
     A specialized HuggingFaceDataSource for stock endpoints that adapts stock-specific request parameters
     (e.g., mapping `symbols` parameter to `ticker` column filtering for `/api/qdata/v1/stock/ystock_info`).

@@ -6,6 +6,7 @@ from dojo.types.models import (
     AnalysisMarketDynamicsResponse,
     AnalysisTopicDiscoveriesResponse,
     MarketDynamicsCreateResponse,
+    AttributionFactorResponse,
 )
 
 
@@ -53,6 +54,54 @@ class Analysis(SyncAPIResource):
         )
 
     market_dynamics = get_market_dynamics
+
+    def get_attribution_factor(
+        self,
+        *,
+        market: str | None = None,
+        sector_id: str | None = None,
+        factor_topic: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        limit: int | None = None,
+    ) -> AttributionFactorResponse:
+        """Retrieves attribution factor analysis data.
+
+        Parameters
+        ----------
+        market : str, optional
+            Market filtering (e.g. 'cn', 'hk', 'us').
+        sector_id : str, optional
+            Sector ID filtering.
+        factor_topic : str, optional
+            Factor topic filtering.
+        start_time : str, optional
+            ISO-8601 start time.
+        end_time : str, optional
+            ISO-8601 end time.
+        limit : int, optional
+            Max number of records to return.
+        """
+        params: dict[str, Any] = {}
+        if market is not None:
+            params["market"] = market
+        if sector_id is not None:
+            params["sector_id"] = sector_id
+        if factor_topic is not None:
+            params["factor_topic"] = factor_topic
+        if start_time is not None:
+            params["start_time"] = start_time
+        if end_time is not None:
+            params["end_time"] = end_time
+        if limit is not None:
+            params["limit"] = limit
+        return self._get(
+            "/api/qdata/v1/analysis/attribution_factor",
+            cast_to=AttributionFactorResponse,
+            options={"params": params},
+        )
+
+    attribution_factor = get_attribution_factor
 
     def create_market_dynamics(
         self,
@@ -177,6 +226,54 @@ class AsyncAnalysis(AsyncAPIResource):
         )
 
     market_dynamics = get_market_dynamics
+
+    async def get_attribution_factor(
+        self,
+        *,
+        market: str | None = None,
+        sector_id: str | None = None,
+        factor_topic: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        limit: int | None = None,
+    ) -> AttributionFactorResponse:
+        """Retrieves attribution factor analysis data asynchronously.
+
+        Parameters
+        ----------
+        market : str, optional
+            Market filtering (e.g. 'cn', 'hk', 'us').
+        sector_id : str, optional
+            Sector ID filtering.
+        factor_topic : str, optional
+            Factor topic filtering.
+        start_time : str, optional
+            ISO-8601 start time.
+        end_time : str, optional
+            ISO-8601 end time.
+        limit : int, optional
+            Max number of records to return.
+        """
+        params: dict[str, Any] = {}
+        if market is not None:
+            params["market"] = market
+        if sector_id is not None:
+            params["sector_id"] = sector_id
+        if factor_topic is not None:
+            params["factor_topic"] = factor_topic
+        if start_time is not None:
+            params["start_time"] = start_time
+        if end_time is not None:
+            params["end_time"] = end_time
+        if limit is not None:
+            params["limit"] = limit
+        return await self._get(
+            "/api/qdata/v1/analysis/attribution_factor",
+            cast_to=AttributionFactorResponse,
+            options={"params": params},
+        )
+
+    attribution_factor = get_attribution_factor
 
     async def create_market_dynamics(
         self,

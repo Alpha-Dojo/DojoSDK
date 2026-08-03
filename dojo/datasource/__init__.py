@@ -1,7 +1,7 @@
 from .base import DataSource
 from .config import HFConfig, is_online
 from .registry import HFEndpointSpec, resolve
-from .huggingface import HuggingFaceDataSource, StockDataSource, HuggingFaceKlineDataSource
+from .huggingface import HuggingFaceDataSource, StockDataSource, HuggingFaceKlineDataSource, HuggingFaceAttributionFactorDataSource
 from .api import ApiDataSource
 
 __all__ = [
@@ -13,5 +13,6 @@ __all__ = [
     "HuggingFaceDataSource",
     "StockDataSource",
     "HuggingFaceKlineDataSource",
+    "HuggingFaceAttributionFactorDataSource",
     "ApiDataSource",
 ]

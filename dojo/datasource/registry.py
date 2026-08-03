@@ -159,6 +159,12 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         json_columns=[],
         envelope="list",
     ),
+    "/api/qdata/v1/analysis/attribution_factor": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_attribution_factor",
+        path_template="data.parquet",
+        json_columns=["claim", "mechanism", "evidence", "affected_tickers", "attrs"],
+        envelope="list",
+    ),
     # "/api/qdata/v1/analysis/topic_discoveries": HFEndpointSpec(
     #     repo_id="AlphaDojo/dojo_topic_discoveries",
     #     path_template="data.parquet",

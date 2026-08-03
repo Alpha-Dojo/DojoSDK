@@ -458,3 +458,23 @@ class MarketDynamicsCreateRequest(DojoModel):
 
 class MarketDynamicsCreateResponse(DojoModel):
     created: int
+
+
+class AttributionFactorItem(DojoModel):
+    claim: Dict[str, Any] | None = None
+    sector_id: str | None = None
+    market: str | None = None
+    factor_topic: str | None = None
+    role: str | None = None
+    price_direction: str | None = None
+    importance: str | None = None
+    mechanism: Dict[str, Any] | None = None
+    evidence: List[Dict[str, Any]] | None = None
+    affected_tickers: List[str] | None = None
+    event_time: str | None = None
+    attrs: Dict[str, Any] | None = None
+
+
+class AttributionFactorResponse(DojoModel):
+    total_num: int | None = None
+    data: List[AttributionFactorItem] | List[Dict[str, Any]] | None = None
