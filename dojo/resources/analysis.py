@@ -60,6 +60,7 @@ class Analysis(SyncAPIResource):
         *,
         market: str | None = None,
         sector_id: str | None = None,
+        scope: str | list[str] | None = None,
         factor_topic: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
@@ -73,6 +74,8 @@ class Analysis(SyncAPIResource):
             Market filtering (e.g. 'cn', 'hk', 'us').
         sector_id : str, optional
             Sector ID filtering.
+        scope : str or list of str, optional
+            Scope filtering (e.g. 'l1', 'l2', 'l3').
         factor_topic : str, optional
             Factor topic filtering.
         start_time : str, optional
@@ -87,6 +90,8 @@ class Analysis(SyncAPIResource):
             params["market"] = market
         if sector_id is not None:
             params["sector_id"] = sector_id
+        if scope is not None:
+            params["scope"] = scope
         if factor_topic is not None:
             params["factor_topic"] = factor_topic
         if start_time is not None:
@@ -232,6 +237,7 @@ class AsyncAnalysis(AsyncAPIResource):
         *,
         market: str | None = None,
         sector_id: str | None = None,
+        scope: str | list[str] | None = None,
         factor_topic: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
@@ -245,6 +251,8 @@ class AsyncAnalysis(AsyncAPIResource):
             Market filtering (e.g. 'cn', 'hk', 'us').
         sector_id : str, optional
             Sector ID filtering.
+        scope : str or list of str, optional
+            Scope filtering (e.g. 'l1', 'l2', 'l3').
         factor_topic : str, optional
             Factor topic filtering.
         start_time : str, optional
@@ -259,6 +267,8 @@ class AsyncAnalysis(AsyncAPIResource):
             params["market"] = market
         if sector_id is not None:
             params["sector_id"] = sector_id
+        if scope is not None:
+            params["scope"] = scope
         if factor_topic is not None:
             params["factor_topic"] = factor_topic
         if start_time is not None:

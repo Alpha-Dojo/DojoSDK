@@ -680,8 +680,39 @@ class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
             if target_set:
                 df = df[df["sector_id_list"].apply(lambda lst: bool(target_set.intersection(lst)))]
 
-        # 2. Generic column filters (e.g. market, factor_topic, role, etc.)
-        ignored = {spec.limit_param, spec.start_param, spec.end_param, spec.fields_param, "sector_id", "sector_id_list"}
+        # 2. scope filtering (l1, l2, l3) using dojo_sector_info dataset
+        scope_param = merged.get("scope")
+        if scope_param is not None and "sector_id_list" in df.columns:
+            target_levels = set()
+            if isinstance(scope_param, (int, str)):
+                parts = [p.strip().lower() for p in str(scope_param).replace(",", "/").split("/") if p.strip()]
+            elif isinstance(scope_param, (list, tuple, set)):
+                parts = [str(p).strip().lower() for p in scope_param if str(p).strip()]
+            else:
+                parts = []
+
+            for p in parts:
+                if p in ("l1", "1"):
+                    target_levels.add(1)
+                elif p in ("l2", "2"):
+                    target_levels.add(2)
+                elif p in ("l3", "3"):
+                    target_levels.add(3)
+
+            if target_levels:
+                try:
+                    df_sector = self.fetch_df(path="/api/qdata/v1/sector/info")
+                    id_col = "id" if "id" in df_sector.columns else ("sector_id" if "sector_id" in df_sector.columns else None)
+                    if id_col and "level" in df_sector.columns:
+                        matching_sectors = df_sector[df_sector["level"].isin(target_levels)][id_col].dropna().astype(str).unique()
+                        scope_sector_ids = set(matching_sectors)
+                        if scope_sector_ids:
+                            df = df[df["sector_id_list"].apply(lambda lst: bool(scope_sector_ids.intersection(lst)))]
+                except Exception as e:
+                    logger.warning(f"Failed to filter by scope using sector_info: {e}")
+
+        # 3. Generic column filters (e.g. market, factor_topic, role, etc.)
+        ignored = {spec.limit_param, spec.start_param, spec.end_param, spec.fields_param, "sector_id", "sector_id_list", "scope"}
         for key, value in merged.items():
             if key in ignored or value is None or key not in df.columns:
                 continue
