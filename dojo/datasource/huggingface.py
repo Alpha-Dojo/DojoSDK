@@ -771,7 +771,20 @@ class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
             return self._df_cache[cache_key].copy()
 
         df = self.fetch_df(path=path)
-        if "sector_id" in df.columns:
+        if "sector_id" in df.columns or "sector_ref" in df.columns:
+
+            def canonical_sector_ref(row):
+                sector_ref = row.get("sector_ref")
+                if sector_ref is not None and not pd.isna(sector_ref):
+                    text = str(sector_ref).strip()
+                    if text.count("/") == 2 and all(text.split("/")):
+                        return text
+                sector_id = row.get("sector_id")
+                if sector_id is not None and not pd.isna(sector_id):
+                    text = str(sector_id).strip()
+                    if text.count("/") == 2 and all(text.split("/")):
+                        return text
+                return None
 
             def parse_sector_id_list(val):
                 if pd.isna(val) or val is None:
@@ -781,7 +794,8 @@ class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
                     return []
                 return [s.strip() for s in val_str.split("/") if s.strip()]
 
-            df["sector_id_list"] = df["sector_id"].apply(parse_sector_id_list)
+            df["sector_ref"] = df.apply(canonical_sector_ref, axis=1)
+            df["sector_id_list"] = df["sector_ref"].apply(parse_sector_id_list)
 
         self._df_cache[cache_key] = df
         return df.copy()

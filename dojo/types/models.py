@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, List, Dict
-from pydantic import BaseModel, ConfigDict
+from typing import Any, Dict, List, Literal
+from pydantic import BaseModel, ConfigDict, Field
 from dojo._compat import PYDANTIC_V1
 
 
@@ -461,8 +461,11 @@ class MarketDynamicsCreateResponse(DojoModel):
 
 
 class AttributionFactorItem(DojoModel):
+    id: int | None = None
+    factor_uid: str | None = None
     claim: Dict[str, Any] | None = None
-    sector_id: str | None = None
+    sector_id: int | str | None = None
+    sector_ref: str | None = None
     market: str | None = None
     factor_topic: str | None = None
     role: str | None = None
@@ -478,3 +481,141 @@ class AttributionFactorItem(DojoModel):
 class AttributionFactorResponse(DojoModel):
     total_num: int | None = None
     data: List[AttributionFactorItem] | List[Dict[str, Any]] | None = None
+
+
+class LocalizedText(DojoModel):
+    zh: str
+    en: str
+
+
+class AttributionEvidence(DojoModel):
+    quote: str = Field(min_length=1)
+    url: str | None = None
+    title: str | None = None
+
+
+class AttributionFactorWriteItem(DojoModel):
+    claim: LocalizedText
+    sector_id: str = Field(min_length=1, max_length=128)
+    market: Literal["us", "cn", "hk"]
+    factor_topic: Literal[
+        "earnings",
+        "corporate_action",
+        "policy_reg",
+        "demand_supply",
+        "product_tech",
+        "capital_market",
+        "market_structure",
+        "analyst_revision",
+        "exogenous_shock",
+        "macro",
+    ]
+    factor_uid: str | None = Field(default=None, min_length=1, max_length=128)
+    evidence: List[AttributionEvidence] | None = None
+    affected_tickers: List[str] | None = None
+    role: Literal["explains_move", "open_risk", "open_catalyst", "context"] = "explains_move"
+    price_direction: Literal["up", "down", "mixed"] | None = None
+    importance: Literal["high", "medium", "low"] | None = None
+    mechanism: LocalizedText | None = None
+    event_time: str | None = None
+    payload_status: Literal["ready", "rejected"] = "ready"
+    stance: Literal["positive", "negative", "neutral", "mixed"] | None = None
+    attrs: Dict[str, Any] | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class AttributionFactorWriteRequest(DojoModel):
+    items: List[AttributionFactorWriteItem] = Field(min_length=1, max_length=10000)
+
+
+class AttributionFactorWriteResult(DojoModel):
+    id: int
+    factor_uid: str
+    market: str
+    sector_id: int | None = None
+    sector_ref: str | None = None
+    factor_topic: str
+    role: str
+    payload_status: str
+    price_direction: str | None = None
+    importance: str | None = None
+    stance: str | None = None
+    claim: LocalizedText | None = None
+    mechanism: LocalizedText | None = None
+    event_time: str | None = None
+    evidence: Any = None
+    affected_tickers: List[str] | None = None
+    attrs: Any = None
+
+
+class AttributionFactorWriteResponse(DojoModel):
+    data: List[AttributionFactorWriteResult] | None = None
+
+
+class SectorBriefTitle(DojoModel):
+    zh: str = Field(min_length=1, max_length=24)
+    en: str = Field(min_length=1, max_length=60)
+
+
+class SectorBriefDetail(DojoModel):
+    zh: str = Field(min_length=1, max_length=80)
+    en: str = Field(min_length=1, max_length=160)
+
+
+class SectorBriefRoleLabel(DojoModel):
+    zh: str = Field(min_length=1, max_length=8)
+    en: str = Field(min_length=1, max_length=24)
+
+
+class SectorBriefThesis(DojoModel):
+    zh: str = Field(min_length=1, max_length=24)
+    en: str = Field(min_length=1, max_length=60)
+
+
+class SectorBriefDriver(DojoModel):
+    title: SectorBriefTitle
+    detail: SectorBriefDetail | None = None
+    importance: Literal["high", "medium", "low"]
+    price_direction: Literal["up", "down", "mixed"]
+
+
+class SectorBriefRisk(DojoModel):
+    title: SectorBriefTitle
+    detail: SectorBriefDetail | None = None
+    importance: Literal["high", "medium", "low"]
+
+
+class SectorBriefComponent(DojoModel):
+    ticker: str = Field(min_length=1, max_length=16, pattern=r"^[A-Za-z0-9.]+$")
+    role_label: SectorBriefRoleLabel
+    thesis: SectorBriefThesis
+
+
+class SectorBriefExtractWriteItem(DojoModel):
+    market: Literal["us", "cn", "hk"]
+    sector_id: str = Field(min_length=1, max_length=128)
+    as_of_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    brief_uid: str | None = Field(default=None, min_length=1, max_length=128)
+    key_drivers: List[SectorBriefDriver] = Field(max_length=5)
+    key_risks: List[SectorBriefRisk] = Field(max_length=4)
+    top_components: List[SectorBriefComponent] = Field(max_length=8)
+
+
+class SectorBriefExtractItem(SectorBriefExtractWriteItem):
+    id: int | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class SectorBriefExtractListResponse(DojoModel):
+    total_num: int | None = None
+    data: List[SectorBriefExtractItem] | List[Dict[str, Any]] | None = None
+
+
+class SectorBriefExtractWriteRequest(DojoModel):
+    items: List[SectorBriefExtractWriteItem] = Field(min_length=1, max_length=10000)
+
+
+class SectorBriefExtractWriteResponse(DojoModel):
+    data: List[SectorBriefExtractItem] | None = None

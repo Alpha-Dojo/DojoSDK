@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from typing import Any
+from dojo._compat import model_dump, model_validate
 from dojo.resources.base import SyncAPIResource, AsyncAPIResource
 from dojo.types.models import (
     AnalysisMarketDynamicsResponse,
     AnalysisTopicDiscoveriesResponse,
+    AttributionFactorWriteRequest,
+    AttributionFactorWriteResponse,
     MarketDynamicsCreateResponse,
     AttributionFactorResponse,
+    SectorBriefExtractListResponse,
+    SectorBriefExtractWriteRequest,
+    SectorBriefExtractWriteResponse,
 )
 
 
@@ -59,7 +65,7 @@ class Analysis(SyncAPIResource):
         self,
         *,
         market: str | None = None,
-        sector_id: str | None = None,
+        sector_id: int | str | None = None,
         scope: str | list[str] | None = None,
         factor_topic: str | None = None,
         start_time: str | None = None,
@@ -107,6 +113,64 @@ class Analysis(SyncAPIResource):
         )
 
     attribution_factor = get_attribution_factor
+
+    def create_attribution_factor(
+        self,
+        *,
+        body: AttributionFactorWriteRequest | dict[str, Any],
+    ) -> AttributionFactorWriteResponse:
+        """Atomically create or update attribution factors."""
+        request = body if isinstance(body, AttributionFactorWriteRequest) else model_validate(AttributionFactorWriteRequest, body)
+        return self._post(
+            "/api/qdata/v1/analysis/attribution_factor",
+            cast_to=AttributionFactorWriteResponse,
+            options={"json": model_dump(request, exclude_none=True)},
+        )
+
+    def list_sector_brief_extract(
+        self,
+        *,
+        market: str | None = None,
+        sector_id: int | str | None = None,
+        as_of_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        limit: int | None = None,
+    ) -> SectorBriefExtractListResponse:
+        """List extracted sector briefs."""
+        params = {
+            key: value
+            for key, value in {
+                "market": market,
+                "sector_id": sector_id,
+                "as_of_date": as_of_date,
+                "start_date": start_date,
+                "end_date": end_date,
+                "limit": limit,
+            }.items()
+            if value is not None
+        }
+        return self._get(
+            "/api/qdata/v1/analysis/sector_brief_extract",
+            cast_to=SectorBriefExtractListResponse,
+            options={"params": params},
+        )
+
+    get_sector_brief_extract = list_sector_brief_extract
+    sector_brief_extract = list_sector_brief_extract
+
+    def create_sector_brief_extract(
+        self,
+        *,
+        body: SectorBriefExtractWriteRequest | dict[str, Any],
+    ) -> SectorBriefExtractWriteResponse:
+        """Atomically create or update extracted sector briefs."""
+        request = body if isinstance(body, SectorBriefExtractWriteRequest) else model_validate(SectorBriefExtractWriteRequest, body)
+        return self._post(
+            "/api/qdata/v1/analysis/sector_brief_extract",
+            cast_to=SectorBriefExtractWriteResponse,
+            options={"json": model_dump(request, exclude_none=True)},
+        )
 
     def create_market_dynamics(
         self,
@@ -284,6 +348,64 @@ class AsyncAnalysis(AsyncAPIResource):
         )
 
     attribution_factor = get_attribution_factor
+
+    async def create_attribution_factor(
+        self,
+        *,
+        body: AttributionFactorWriteRequest | dict[str, Any],
+    ) -> AttributionFactorWriteResponse:
+        """Atomically create or update attribution factors asynchronously."""
+        request = body if isinstance(body, AttributionFactorWriteRequest) else model_validate(AttributionFactorWriteRequest, body)
+        return await self._post(
+            "/api/qdata/v1/analysis/attribution_factor",
+            cast_to=AttributionFactorWriteResponse,
+            options={"json": model_dump(request, exclude_none=True)},
+        )
+
+    async def list_sector_brief_extract(
+        self,
+        *,
+        market: str | None = None,
+        sector_id: str | None = None,
+        as_of_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        limit: int | None = None,
+    ) -> SectorBriefExtractListResponse:
+        """List extracted sector briefs asynchronously."""
+        params = {
+            key: value
+            for key, value in {
+                "market": market,
+                "sector_id": sector_id,
+                "as_of_date": as_of_date,
+                "start_date": start_date,
+                "end_date": end_date,
+                "limit": limit,
+            }.items()
+            if value is not None
+        }
+        return await self._get(
+            "/api/qdata/v1/analysis/sector_brief_extract",
+            cast_to=SectorBriefExtractListResponse,
+            options={"params": params},
+        )
+
+    get_sector_brief_extract = list_sector_brief_extract
+    sector_brief_extract = list_sector_brief_extract
+
+    async def create_sector_brief_extract(
+        self,
+        *,
+        body: SectorBriefExtractWriteRequest | dict[str, Any],
+    ) -> SectorBriefExtractWriteResponse:
+        """Atomically create or update extracted sector briefs asynchronously."""
+        request = body if isinstance(body, SectorBriefExtractWriteRequest) else model_validate(SectorBriefExtractWriteRequest, body)
+        return await self._post(
+            "/api/qdata/v1/analysis/sector_brief_extract",
+            cast_to=SectorBriefExtractWriteResponse,
+            options={"json": model_dump(request, exclude_none=True)},
+        )
 
     async def create_market_dynamics(
         self,
