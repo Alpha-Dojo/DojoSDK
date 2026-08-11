@@ -447,6 +447,8 @@ class AnalysisTopicDiscoveriesResponse(DojoModel):
 
 
 class MarketDynamicsItem(DojoModel):
+    market: Literal["us", "hk", "cn"]
+    trading_date: str
     event_time: str
     event_summary: Dict[str, Any]
     sector_impacts: List[Dict[str, Any]]
@@ -457,7 +459,7 @@ class MarketDynamicsCreateRequest(DojoModel):
 
 
 class MarketDynamicsCreateResponse(DojoModel):
-    created: int
+    data: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class AttributionFactorItem(DojoModel):

@@ -175,6 +175,8 @@ class Analysis(SyncAPIResource):
     def create_market_dynamics(
         self,
         *,
+        market: str,
+        trading_date: str,
         event_time: str,
         event_summary: dict[str, Any],
         sector_impacts: list[dict[str, Any]],
@@ -185,6 +187,8 @@ class Analysis(SyncAPIResource):
             cast_to=MarketDynamicsCreateResponse,
             options={
                 "json": {
+                    "market": market,
+                    "trading_date": trading_date,
                     "event_time": event_time,
                     "event_summary": event_summary,
                     "sector_impacts": sector_impacts,
@@ -410,6 +414,8 @@ class AsyncAnalysis(AsyncAPIResource):
     async def create_market_dynamics(
         self,
         *,
+        market: str,
+        trading_date: str,
         event_time: str,
         event_summary: dict[str, Any],
         sector_impacts: list[dict[str, Any]],
@@ -420,6 +426,8 @@ class AsyncAnalysis(AsyncAPIResource):
             cast_to=MarketDynamicsCreateResponse,
             options={
                 "json": {
+                    "market": market,
+                    "trading_date": trading_date,
                     "event_time": event_time,
                     "event_summary": event_summary,
                     "sector_impacts": sector_impacts,
