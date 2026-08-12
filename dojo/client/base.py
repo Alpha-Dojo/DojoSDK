@@ -57,6 +57,11 @@ class BaseClient:
         self.return_raw_data = return_raw_data
 
     @property
+    def online(self) -> bool:
+        """Whether this client reads from the online QData API."""
+        return bool(getattr(self, "_online", True))
+
+    @property
     def default_headers(self) -> dict[str, str]:
         # Emits default headers including language and platform telemetry
         headers = {
@@ -157,7 +162,11 @@ class BaseClient:
             code = data.get("code")
             if str(code) not in ("0", "200", "00000", "success"):
                 msg = data.get("msg", data.get("message", f"API business error with code {code}"))
-                raise APIStatusError(f"Business Error: {msg} (code: {code})", response=response, body=data)
+                raise APIStatusError(
+                    f"Business Error: {msg} (code: {code})",
+                    response=response,
+                    body=data,
+                )
             if "data" in data:
                 payload = data["data"]
 
@@ -174,10 +183,7 @@ class BaseClient:
 
             # Map payload list to single list field
             if isinstance(payload, list):
-                list_field = None
-                for field_name in fields:
-                    list_field = field_name
-                    break
+                list_field = "data" if "data" in fields else next(iter(fields), None)
                 if list_field:
                     payload = {list_field: payload}
 
@@ -187,7 +193,12 @@ class BaseClient:
                 if "data" in payload and "data" not in fields:
                     target_field = None
                     for field_name in fields:
-                        if field_name not in ["total_num", "symbol", "exchange", "bz_type"]:
+                        if field_name not in [
+                            "total_num",
+                            "symbol",
+                            "exchange",
+                            "bz_type",
+                        ]:
                             target_field = field_name
                             break
                     if target_field:
@@ -297,16 +308,40 @@ class SyncAPIClient(BaseClient):
         return parsed_data
 
     # Helper HTTP verb methods
-    def get(self, path: str, *, cast_to: Type[ResponseT], options: dict[str, Any] | None = None) -> ResponseT:
+    def get(
+        self,
+        path: str,
+        *,
+        cast_to: Type[ResponseT],
+        options: dict[str, Any] | None = None,
+    ) -> ResponseT:
         return self.request("GET", path, cast_to=cast_to, options=options)
 
-    def post(self, path: str, *, cast_to: Type[ResponseT], options: dict[str, Any] | None = None) -> ResponseT:
+    def post(
+        self,
+        path: str,
+        *,
+        cast_to: Type[ResponseT],
+        options: dict[str, Any] | None = None,
+    ) -> ResponseT:
         return self.request("POST", path, cast_to=cast_to, options=options)
 
-    def put(self, path: str, *, cast_to: Type[ResponseT], options: dict[str, Any] | None = None) -> ResponseT:
+    def put(
+        self,
+        path: str,
+        *,
+        cast_to: Type[ResponseT],
+        options: dict[str, Any] | None = None,
+    ) -> ResponseT:
         return self.request("PUT", path, cast_to=cast_to, options=options)
 
-    def delete(self, path: str, *, cast_to: Type[ResponseT], options: dict[str, Any] | None = None) -> ResponseT:
+    def delete(
+        self,
+        path: str,
+        *,
+        cast_to: Type[ResponseT],
+        options: dict[str, Any] | None = None,
+    ) -> ResponseT:
         return self.request("DELETE", path, cast_to=cast_to, options=options)
 
 
@@ -331,7 +366,15 @@ class AsyncAPIClient(BaseClient):
         if not getattr(self, "_online", True) and getattr(self, "_data_source", None) is not None:
             import functools
 
-            payload = await anyio.to_thread.run_sync(functools.partial(self._data_source.fetch, method=method, path=path, params=params, json=json_data))
+            payload = await anyio.to_thread.run_sync(
+                functools.partial(
+                    self._data_source.fetch,
+                    method=method,
+                    path=path,
+                    params=params,
+                    json=json_data,
+                )
+            )
             response = httpx.Response(
                 200,
                 json=payload,
@@ -391,14 +434,38 @@ class AsyncAPIClient(BaseClient):
         return parsed_data
 
     # Helper HTTP verb methods
-    async def get(self, path: str, *, cast_to: Type[ResponseT], options: dict[str, Any] | None = None) -> ResponseT:
+    async def get(
+        self,
+        path: str,
+        *,
+        cast_to: Type[ResponseT],
+        options: dict[str, Any] | None = None,
+    ) -> ResponseT:
         return await self.request("GET", path, cast_to=cast_to, options=options)
 
-    async def post(self, path: str, *, cast_to: Type[ResponseT], options: dict[str, Any] | None = None) -> ResponseT:
+    async def post(
+        self,
+        path: str,
+        *,
+        cast_to: Type[ResponseT],
+        options: dict[str, Any] | None = None,
+    ) -> ResponseT:
         return await self.request("POST", path, cast_to=cast_to, options=options)
 
-    async def put(self, path: str, *, cast_to: Type[ResponseT], options: dict[str, Any] | None = None) -> ResponseT:
+    async def put(
+        self,
+        path: str,
+        *,
+        cast_to: Type[ResponseT],
+        options: dict[str, Any] | None = None,
+    ) -> ResponseT:
         return await self.request("PUT", path, cast_to=cast_to, options=options)
 
-    async def delete(self, path: str, *, cast_to: Type[ResponseT], options: dict[str, Any] | None = None) -> ResponseT:
+    async def delete(
+        self,
+        path: str,
+        *,
+        cast_to: Type[ResponseT],
+        options: dict[str, Any] | None = None,
+    ) -> ResponseT:
         return await self.request("DELETE", path, cast_to=cast_to, options=options)

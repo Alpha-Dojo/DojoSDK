@@ -135,7 +135,13 @@ class HuggingFaceDataSource:
             except Exception as err:
                 logger.warning(f"Failed to warm companion file {spec.repo_id}/{template}: {err}")
 
-    def _load_companion_dataset(self, repo_id: str, template: str, params: dict[str, Any], ms_repo_id: str | None = None):
+    def _load_companion_dataset(
+        self,
+        repo_id: str,
+        template: str,
+        params: dict[str, Any],
+        ms_repo_id: str | None = None,
+    ):
         relative = self._render_template(template, params)
         cache_key = f"{repo_id}/{relative}"
         if cache_key in self._table_cache:
@@ -372,6 +378,7 @@ class HuggingFaceDataSource:
         # Generic filtering: any param key that matches a column name is applied as an exact match filter
         ignore_params = {
             spec.limit_param,
+            spec.offset_param,
             spec.start_param,
             spec.end_param,
             spec.fields_param,
@@ -411,6 +418,9 @@ class HuggingFaceDataSource:
         if spec.time_field and spec.time_field in table.column_names:
             table = table.sort_by([(spec.time_field, "descending" if spec.order_desc else "ascending")])
 
+        offset = params.get(spec.offset_param)
+        if isinstance(offset, int) and offset > 0:
+            table = table.slice(offset)
         limit = params.get(spec.limit_param)
         if isinstance(limit, int) and limit > 0:
             table = table.slice(0, limit)
@@ -637,7 +647,11 @@ class HuggingFaceDataSource:
                 size /= 1024.0
             return f"{size:.1f}PB"
 
-        result = {"freed_space": format_bytes(total_freed_bytes), "details": freed_summary, "message": "Cache cleanup complete."}
+        result = {
+            "freed_space": format_bytes(total_freed_bytes),
+            "details": freed_summary,
+            "message": "Cache cleanup complete.",
+        }
         logger.info(f"Cache cleanup complete. Total freed: {result['freed_space']}")
         return result
 
@@ -712,7 +726,16 @@ class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
                     logger.warning(f"Failed to filter by scope using sector_info: {e}")
 
         # 3. Generic column filters (e.g. market, factor_topic, role, etc.)
-        ignored = {spec.limit_param, spec.start_param, spec.end_param, spec.fields_param, "sector_id", "sector_id_list", "scope"}
+        ignored = {
+            spec.limit_param,
+            spec.offset_param,
+            spec.start_param,
+            spec.end_param,
+            spec.fields_param,
+            "sector_id",
+            "sector_id_list",
+            "scope",
+        }
         for key, value in merged.items():
             if key in ignored or value is None or key not in df.columns:
                 continue
@@ -730,6 +753,9 @@ class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
             df = df.sort_values(spec.time_field, ascending=not spec.order_desc)
 
         # 4. Limit slicing
+        offset = merged.get(spec.offset_param)
+        if isinstance(offset, int) and offset > 0:
+            df = df.iloc[offset:]
         limit = merged.get(spec.limit_param)
         if isinstance(limit, int) and limit > 0:
             df = df.iloc[:limit]
@@ -741,7 +767,13 @@ class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
 
         # 6. Convert to dict list and parse JSON columns
         rows = df.to_dict(orient="records")
-        json_cols = spec.json_columns or ["claim", "mechanism", "evidence", "affected_tickers", "attrs"]
+        json_cols = spec.json_columns or [
+            "claim",
+            "mechanism",
+            "evidence",
+            "affected_tickers",
+            "attrs",
+        ]
         import json as json_module
         import datetime
 
@@ -855,13 +887,21 @@ class HuggingFaceKlineDataSource(StockDataSource):
                 else:
                     df = df.loc[[symbols]] if symbols in df.index else df.iloc[:0]
             else:
-                df = df[df[spec.symbol_field].isin(symbols) if isinstance(symbols, list) else df[spec.symbol_field].eq(symbols)]
+                df = df[(df[spec.symbol_field].isin(symbols) if isinstance(symbols, list) else df[spec.symbol_field].eq(symbols))]
 
-        ignored = {spec.limit_param, spec.start_param, spec.end_param, spec.fields_param, spec.symbol_param, "index"}
+        ignored = {
+            spec.limit_param,
+            spec.offset_param,
+            spec.start_param,
+            spec.end_param,
+            spec.fields_param,
+            spec.symbol_param,
+            "index",
+        }
         for key, value in merged.items():
             if key in ignored or value is None or key not in df.columns:
                 continue
-            df = df[df[key].isin(value) if isinstance(value, (list, tuple, set)) else df[key].eq(value)]
+            df = df[(df[key].isin(value) if isinstance(value, (list, tuple, set)) else df[key].eq(value))]
 
         if spec.time_field and spec.time_field in df.columns:
             if merged.get(spec.start_param) is not None:
@@ -874,6 +914,9 @@ class HuggingFaceKlineDataSource(StockDataSource):
         if isinstance(index, int) and not isinstance(index, bool):
             df = df.iloc[[index]] if -len(df) <= index < len(df) else df.iloc[:0]
 
+        offset = merged.get(spec.offset_param)
+        if isinstance(offset, int) and offset > 0:
+            df = df.iloc[offset:]
         limit = merged.get(spec.limit_param)
         if isinstance(limit, int) and limit > 0:
             df = df.iloc[:limit]

@@ -389,50 +389,68 @@ class ForexSymbolListResponse(DojoModel):
     symbols: List[Dict[str, Any]] | None = None
 
 
-# --- Sector Precomputed ---
-class SectorPrecomputedConstituentsResponse(DojoModel):
-    total_num: int | None = None
+# --- Market datasets / legacy sector precomputed compatibility ---
+class DatasetResponse(DojoModel):
     data: List[Dict[str, Any]] | None = None
-
-
-class SectorPrecomputedDailyResponse(DojoModel):
+    meta: Dict[str, Any] | None = None
     total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
 
 
-class SectorPrecomputedTickerDailyResponse(DojoModel):
-    total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
+class SectorPrecomputedConstituentsResponse(DatasetResponse):
+    pass
 
 
-class SectorPrecomputedFundamentalsPeriodResponse(DojoModel):
-    total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
+class SectorPrecomputedDailyResponse(DatasetResponse):
+    pass
 
 
-class SectorPrecomputedMarketBenchmarkDailyResponse(DojoModel):
-    total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
+class SectorPrecomputedTickerDailyResponse(DatasetResponse):
+    pass
 
 
-class SectorPrecomputedSectorAlphaFactorsDailyResponse(DojoModel):
-    total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
+class SectorPrecomputedFundamentalsPeriodResponse(DatasetResponse):
+    pass
 
 
-class SectorPrecomputedTickerAlphaFactorsDailyResponse(DojoModel):
-    total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
+class SectorPrecomputedMarketBenchmarkDailyResponse(DatasetResponse):
+    pass
 
 
-class SectorPrecomputedSectorHorizonMetricsResponse(DojoModel):
-    total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
+class SectorPrecomputedSectorAlphaFactorsDailyResponse(DatasetResponse):
+    pass
 
 
-class SectorPrecomputedThemeStateDailyResponse(DojoModel):
-    total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
+class SectorPrecomputedTickerAlphaFactorsDailyResponse(DatasetResponse):
+    pass
+
+
+class SectorPrecomputedSectorHorizonMetricsResponse(DatasetResponse):
+    pass
+
+
+class SectorPrecomputedThemeStateDailyResponse(DatasetResponse):
+    pass
+
+
+class SectorMoverItem(DojoModel):
+    rank: int
+    sector: Dict[str, Any]
+    level1_id: int
+    level2_id: int
+    level3_id: int
+    change_percent: float
+    absolute_change_percent: float
+    total_market_cap: float
+    effective_member_count: int
+
+
+class SectorMoversMarket(DojoModel):
+    as_of: str | None = None
+    items: List[SectorMoverItem] = Field(default_factory=list)
+
+
+class SectorMoversResponse(DojoModel):
+    markets: Dict[str, SectorMoversMarket] = Field(default_factory=dict)
 
 
 # --- Analysis ---

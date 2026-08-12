@@ -36,6 +36,7 @@ class HFEndpointSpec:
     symbol_param: str = "symbol"
 
     limit_param: str = "limit"
+    offset_param: str = "offset"
     order_desc: bool = True
 
     # Projection (column pruning)
@@ -145,12 +146,18 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         repo_id="AlphaDojo/dojo_sector_precomputed",
         path_template="sector_daily.parquet",
         json_columns=[],
+        time_field="trade_date",
+        start_param="start_date",
+        end_param="end_date",
         envelope="list",
     ),
     "/api/qdata/v1/sector/precomputed/ticker_daily": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_sector_precomputed",
         path_template="ticker_daily.parquet",
         json_columns=[],
+        time_field="trade_date",
+        start_param="start_date",
+        end_param="end_date",
         envelope="list",
     ),
     "/api/qdata/v1/analysis/market_dynamics": HFEndpointSpec(

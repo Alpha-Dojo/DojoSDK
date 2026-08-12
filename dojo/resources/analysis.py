@@ -68,6 +68,8 @@ class Analysis(SyncAPIResource):
         sector_id: int | str | None = None,
         scope: str | list[str] | None = None,
         factor_topic: str | None = None,
+        role: str | None = None,
+        payload_status: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
         limit: int | None = None,
@@ -100,6 +102,10 @@ class Analysis(SyncAPIResource):
             params["scope"] = scope
         if factor_topic is not None:
             params["factor_topic"] = factor_topic
+        if role is not None:
+            params["role"] = role
+        if payload_status is not None:
+            params["payload_status"] = payload_status
         if start_time is not None:
             params["start_time"] = start_time
         if end_time is not None:
@@ -307,6 +313,8 @@ class AsyncAnalysis(AsyncAPIResource):
         sector_id: str | None = None,
         scope: str | list[str] | None = None,
         factor_topic: str | None = None,
+        role: str | None = None,
+        payload_status: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
         limit: int | None = None,
@@ -339,6 +347,10 @@ class AsyncAnalysis(AsyncAPIResource):
             params["scope"] = scope
         if factor_topic is not None:
             params["factor_topic"] = factor_topic
+        if role is not None:
+            params["role"] = role
+        if payload_status is not None:
+            params["payload_status"] = payload_status
         if start_time is not None:
             params["start_time"] = start_time
         if end_time is not None:
