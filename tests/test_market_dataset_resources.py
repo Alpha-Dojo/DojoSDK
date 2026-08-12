@@ -45,6 +45,12 @@ TARGETS = (
     ),
 )
 
+WRITE_TARGETS = (
+    ("create_constituents", "/api/qdata/v1/market/sectors/constituents"),
+    ("create_daily", "/api/qdata/v1/market/sectors/daily"),
+    ("create_ticker_daily", "/api/qdata/v1/market/tickers/daily"),
+)
+
 OPENAPI_TARGET_PATHS = {path for _method, path, _kwargs in TARGETS} | {
     "/api/qdata/v1/sector/movers",
     "/api/qdata/v1/market/sectors/factors/daily",
@@ -153,6 +159,49 @@ async def test_async_market_dataset_paths(monkeypatch, method: str, path: str, k
         await getattr(client.sectors, method)(**kwargs)
     finally:
         await http_client.aclose()
+    assert seen[0].url.path == path
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("method", "path"), WRITE_TARGETS)
+@pytest.mark.parametrize(("replace", "http_method"), ((False, "POST"), (True, "PUT")))
+async def test_async_market_dataset_writes(monkeypatch, method: str, path: str, replace: bool, http_method: str) -> None:
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    seen = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"meta": {}, "data": {"inserted": 1}})
+
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    client = AsyncDojo(api_key="test", http_client=http_client)
+    try:
+        result = await getattr(client.sectors, method)(observations=[{"market": "cn"}], replace=replace)
+    finally:
+        await http_client.aclose()
+    assert result["data"] == {"inserted": 1}
+    assert seen[0].method == http_method
+    assert seen[0].url.path == path
+    assert json.loads(seen[0].content) == {"observations": [{"market": "cn"}]}
+
+
+@pytest.mark.parametrize(("method", "path"), WRITE_TARGETS)
+def test_sync_market_dataset_writes(monkeypatch, method: str, path: str) -> None:
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"meta": {}, "data": {"inserted": 1}})
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    client = Dojo(api_key="test", http_client=http_client)
+    try:
+        result = getattr(client.sectors, method)(observations=[{"market": "cn"}])
+    finally:
+        http_client.close()
+    assert result["data"] == {"inserted": 1}
+    assert seen[0].method == "POST"
     assert seen[0].url.path == path
 
 

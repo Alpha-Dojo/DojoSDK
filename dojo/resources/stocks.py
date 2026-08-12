@@ -184,7 +184,7 @@ class Stocks(SyncAPIResource):
         """
         params: dict[str, Any] = {}
         if symbols is not None:
-            params["symbols"] = symbols
+            params["symbols"] = ",".join(symbols)
         return self._get(
             "/api/qdata/v1/stocks/current_quote",
             cast_to=CurrentQuoteResponse,
@@ -943,7 +943,7 @@ class AsyncStocks(AsyncAPIResource):
         """
         params: dict[str, Any] = {}
         if symbols is not None:
-            params["symbols"] = symbols
+            params["symbols"] = ",".join(symbols)
         return await self._get(
             "/api/qdata/v1/stocks/current_quote",
             cast_to=CurrentQuoteResponse,

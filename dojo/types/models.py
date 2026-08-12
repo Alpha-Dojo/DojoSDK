@@ -396,6 +396,15 @@ class DatasetResponse(DojoModel):
     total_num: int | None = None
 
 
+class DatasetWriteRequest(DojoModel):
+    observations: List[Dict[str, Any]] = Field(min_length=1, max_length=10000)
+
+
+class DatasetWriteResponse(DojoModel):
+    data: Dict[str, Any] | None = None
+    meta: Dict[str, Any] | None = None
+
+
 class SectorPrecomputedConstituentsResponse(DatasetResponse):
     pass
 

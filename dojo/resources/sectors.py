@@ -19,6 +19,8 @@ from dojo.types.models import (
     SectorPrecomputedSectorAlphaFactorsDailyResponse,
     SectorPrecomputedTickerAlphaFactorsDailyResponse,
     SectorMoversResponse,
+    DatasetWriteRequest,
+    DatasetWriteResponse,
 )
 
 
@@ -58,6 +60,20 @@ def _daily_params(
 
 
 class Sectors(SyncAPIResource):
+
+    def _write_market_dataset(self, path: str, observations: List[dict[str, Any]], *, replace: bool = False) -> DatasetWriteResponse:
+        body = DatasetWriteRequest(observations=observations).model_dump(mode="json")
+        method = self._put if replace else self._post
+        return method(path, cast_to=DatasetWriteResponse, options={"json": body})
+
+    def create_constituents(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
+        return self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", observations, replace=replace)
+
+    def create_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
+        return self._write_market_dataset("/api/qdata/v1/market/sectors/daily", observations, replace=replace)
+
+    def create_ticker_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
+        return self._write_market_dataset("/api/qdata/v1/market/tickers/daily", observations, replace=replace)
 
     def get(self) -> SectorsResponse:
         """Retrieves list of all sectors.
@@ -561,6 +577,20 @@ class Sectors(SyncAPIResource):
 
 
 class AsyncSectors(AsyncAPIResource):
+
+    async def _write_market_dataset(self, path: str, observations: List[dict[str, Any]], *, replace: bool = False) -> DatasetWriteResponse:
+        body = DatasetWriteRequest(observations=observations).model_dump(mode="json")
+        method = self._put if replace else self._post
+        return await method(path, cast_to=DatasetWriteResponse, options={"json": body})
+
+    async def create_constituents(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
+        return await self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", observations, replace=replace)
+
+    async def create_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
+        return await self._write_market_dataset("/api/qdata/v1/market/sectors/daily", observations, replace=replace)
+
+    async def create_ticker_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
+        return await self._write_market_dataset("/api/qdata/v1/market/tickers/daily", observations, replace=replace)
 
     async def get(self) -> SectorsResponse:
         """Retrieves list of all sectors asynchronously.
