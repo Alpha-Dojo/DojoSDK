@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Dict
+from typing import Any, List
 import pandas as pd
 from dojo.resources.base import AsyncAPIResource, SyncAPIResource, normalize_naive_iso_datetime
 from dojo.types.models import (
@@ -491,7 +491,7 @@ class Stocks(SyncAPIResource):
         raw_response = self._client._data_source.fetch(method="GET", path="/api/qdata/v1/stock/kline", params=params)["data"]
         response = StockKlineResponse.model_validate(raw_response)
 
-        return getattr(response, "klines", response.data)
+        return response.data
 
     def get_all_klines_with_df(self) -> "pd.DataFrame":  # type: ignore
         """Retrieves offline stock K-line data directly as a pandas DataFrame.
@@ -1236,7 +1236,7 @@ class AsyncStocks(AsyncAPIResource):
 
     kline = get_kline
 
-    async def get_all_klines(self, *, symbols: List[str] | None = None) -> List[Dict]:
+    async def get_all_klines(self, *, symbols: List[str] | None = None) -> List[StockKlineResponseItem]:
         """Retrieves offline stock K-line data asynchronously.
 
         This method fetches directly from the offline dataset.
@@ -1248,26 +1248,27 @@ class AsyncStocks(AsyncAPIResource):
             params["symbol"] = ",".join(symbols)
 
         # Force offline fetch
-        import asyncio
+        import anyio
 
-        raw_response = await asyncio.to_thread(
-            self._client._data_source.fetch,
-            method="GET",
-            path="/api/qdata/v1/stock/kline",
-            params=params,
+        raw_response = await anyio.to_thread.run_sync(
+            lambda: self._client._data_source.fetch(
+                method="GET",
+                path="/api/qdata/v1/stock/kline",
+                params=params,
+            )
         )
-        response = raw_response["data"]
+        response = StockKlineResponse.model_validate(raw_response["data"])
 
-        return response.get("klines", response.get("data", []))
+        return response.data
 
     async def get_all_klines_with_df(self) -> "pd.DataFrame":  # type: ignore
         """Retrieves offline stock K-line data directly as a pandas DataFrame asynchronously.
 
         This method leverages the data source to fetch and cache a Pandas DataFrame.
         """
-        import asyncio
+        import anyio
 
-        return await asyncio.to_thread(self._client._data_source.fetch_df, path="/api/qdata/v1/stock/kline")
+        return await anyio.to_thread.run_sync(lambda: self._client._data_source.fetch_df(path="/api/qdata/v1/stock/kline"))
 
     async def get_kline_cs(
         self,

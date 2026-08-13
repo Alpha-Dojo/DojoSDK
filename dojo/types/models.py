@@ -35,13 +35,8 @@ class MarketHistoryResponse(DojoModel):
 
 
 class CurrentQuoteResponse(DojoModel):
-    symbol: str
-    price: float
-    volume: float | None = None
-    high: float | None = None
-    low: float | None = None
-    timestamp: int | None = None
-    quotes: List[Dict[str, Any]] | None = None
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 class FinancialsResponse(DojoModel):
@@ -59,8 +54,8 @@ class StockInfoResponse(DojoModel):
 
 
 class StockNewsResponse(DojoModel):
-    symbol: str
-    news: List[Dict[str, Any]]
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 class StockSentimentResponse(DojoModel):
@@ -95,10 +90,8 @@ class DepthResponse(DojoModel):
 
 
 class KLineResponse(DojoModel):
-    exchange: str
-    bz_type: str
-    symbol: str | None = None
-    klines: List[List[Any]]
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 class MarkPriceResponse(DojoModel):
@@ -159,17 +152,18 @@ class MacroSentimentResponse(DojoModel):
 
 # --- Benchmark ---
 class BenchmarkKLineResponse(DojoModel):
-    symbol: str
-    klines: List[List[Any]]
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 class BenchmarkPriceResponse(DojoModel):
-    prices: List[Dict[str, Any]]
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 class BenchmarkPerformanceResponse(DojoModel):
-    symbol: str
-    performance: List[Dict[str, Any]]
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 class BenchmarkCatalogResponse(DojoModel):
@@ -304,7 +298,7 @@ class YStockInfoItem(DojoModel):
 
 class YStockInfoResponse(DojoModel):
     total_num: int
-    stocks: List[YStockInfoItem]
+    data: List[YStockInfoItem]
 
 
 class StockKlineResponseItem(DojoModel):
@@ -377,16 +371,18 @@ class StockMainIncomeResponse(DojoModel):
 
 # --- Forex ---
 class ForexCurrentQuoteResponse(DojoModel):
-    quotes: List[Dict[str, Any]] | None = None
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 class ForexKlineResponse(DojoModel):
-    symbol: str | None = None
-    klines: List[List[Any]] | None = None
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 class ForexSymbolListResponse(DojoModel):
-    symbols: List[Dict[str, Any]] | None = None
+    total_num: int
+    data: List[Dict[str, Any]]
 
 
 # --- Market datasets / legacy sector precomputed compatibility ---

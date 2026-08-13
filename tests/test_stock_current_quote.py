@@ -8,7 +8,11 @@ from dojo.client.sync import Dojo
 
 
 def _response() -> dict:
-    return {"symbol": "AAPL", "price": 200.0, "quotes": [{"symbol": "AAPL", "last_price": 200.0}]}
+    return {
+        "message": "",
+        "code": 0,
+        "data": {"total_num": 1, "data": [{"symbol": "AAPL", "last_price": 200.0}]},
+    }
 
 
 def test_sync_current_quote_uses_comma_separated_symbols(monkeypatch) -> None:
@@ -22,11 +26,12 @@ def test_sync_current_quote_uses_comma_separated_symbols(monkeypatch) -> None:
     http_client = httpx.Client(transport=httpx.MockTransport(handler))
     client = Dojo(api_key="test", http_client=http_client)
     try:
-        client.stocks.get_quote(symbols=["AAPL", "MSFT", "600519.SH"])
+        response = client.stocks.get_quote(symbols=["AAPL", "MSFT", "600519.SH"])
     finally:
         http_client.close()
 
     assert seen[0].url.params.get_list("symbols") == ["AAPL,MSFT,600519.SH"]
+    assert response == _response()["data"]
 
 
 @pytest.mark.asyncio
@@ -41,8 +46,9 @@ async def test_async_current_quote_uses_comma_separated_symbols(monkeypatch) -> 
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = AsyncDojo(api_key="test", http_client=http_client)
     try:
-        await client.stocks.get_quote(symbols=["AAPL", "MSFT", "600519.SH"])
+        response = await client.stocks.get_quote(symbols=["AAPL", "MSFT", "600519.SH"])
     finally:
         await http_client.aclose()
 
     assert seen[0].url.params.get_list("symbols") == ["AAPL,MSFT,600519.SH"]
+    assert response == _response()["data"]
