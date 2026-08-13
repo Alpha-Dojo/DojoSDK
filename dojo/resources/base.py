@@ -1,7 +1,22 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
 from dojo.logging import logger
+
+
+def normalize_naive_iso_datetime(value: str | date | datetime) -> str:
+    """Return an ISO value without timezone information, preserving wall time."""
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None).isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    text = str(value).strip()
+    if len(text) == 10:
+        date.fromisoformat(text)
+        return text
+    parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    return parsed.replace(tzinfo=None).isoformat()
 
 
 class SyncAPIResource:

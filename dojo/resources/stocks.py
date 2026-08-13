@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, List, Dict
 import pandas as pd
-from dojo.resources.base import SyncAPIResource, AsyncAPIResource
+from dojo.resources.base import AsyncAPIResource, SyncAPIResource, normalize_naive_iso_datetime
 from dojo.types.models import (
     CompetitorsResponse,
     RiskMetricsResponse,
@@ -265,7 +265,7 @@ class Stocks(SyncAPIResource):
         if symbol is not None:
             params["symbol"] = symbol
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if limit is not None:
             params["limit"] = limit
         return self._get(
@@ -460,13 +460,13 @@ class Stocks(SyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if price_adj_type is not None:
             params["price_adj_type"] = price_adj_type
         if price_adj_date is not None:
-            params["price_adj_date"] = price_adj_date
+            params["price_adj_date"] = normalize_naive_iso_datetime(price_adj_date)
         if limit is not None:
             params["limit"] = limit
         return self._get(
@@ -540,9 +540,9 @@ class Stocks(SyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if window_limit is not None:
             params["window_limit"] = window_limit
         return self._get(
@@ -602,9 +602,9 @@ class Stocks(SyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if window_limit is not None:
             params["window_limit"] = window_limit
         return self._get(
@@ -1024,7 +1024,7 @@ class AsyncStocks(AsyncAPIResource):
         if symbol is not None:
             params["symbol"] = symbol
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if limit is not None:
             params["limit"] = limit
         return await self._get(
@@ -1219,13 +1219,13 @@ class AsyncStocks(AsyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if price_adj_type is not None:
             params["price_adj_type"] = price_adj_type
         if price_adj_date is not None:
-            params["price_adj_date"] = price_adj_date
+            params["price_adj_date"] = normalize_naive_iso_datetime(price_adj_date)
         if limit is not None:
             params["limit"] = limit
         return await self._get(
@@ -1309,9 +1309,9 @@ class AsyncStocks(AsyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if window_limit is not None:
             params["window_limit"] = window_limit
         return await self._get(
@@ -1371,9 +1371,9 @@ class AsyncStocks(AsyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if window_limit is not None:
             params["window_limit"] = window_limit
         return await self._get(
