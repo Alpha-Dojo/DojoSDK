@@ -746,10 +746,15 @@ class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
 
         # 3. Time filtering & sorting
         if spec.time_field and spec.time_field in df.columns:
+            time_values = df[spec.time_field]
+
+            def boundary(value: Any) -> Any:
+                return pd.to_datetime(value) if pd.api.types.is_datetime64_any_dtype(time_values) else value
+
             if merged.get(spec.start_param) is not None:
-                df = df[df[spec.time_field].ge(merged[spec.start_param])]
+                df = df[time_values.ge(boundary(merged[spec.start_param]))]
             if merged.get(spec.end_param) is not None:
-                df = df[df[spec.time_field].le(merged[spec.end_param])]
+                df = df[df[spec.time_field].le(boundary(merged[spec.end_param]))]
             df = df.sort_values(spec.time_field, ascending=not spec.order_desc)
 
         # 4. Limit slicing

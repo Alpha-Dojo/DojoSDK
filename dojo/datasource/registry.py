@@ -90,6 +90,7 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
     "/api/qdata/v1/stock/kline": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_stock_kline",
         path_template="data.parquet",
+        time_field="bar_time",
         symbol_field="symbol",
         json_columns=[],
         envelope="list",
