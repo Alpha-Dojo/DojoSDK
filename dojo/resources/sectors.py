@@ -28,6 +28,12 @@ def _params(**values: Any) -> dict[str, Any]:
     return {name: value for name, value in values.items() if value is not None}
 
 
+def _movers_params(*, market: str | None, scope: str | None, start_date: str, end_date: str) -> dict[str, Any]:
+    if not start_date or not end_date:
+        raise ValueError("start_date and end_date are required for sector movers")
+    return _params(market=market, scope=scope, start_date=start_date, end_date=end_date)
+
+
 def _daily_params(
     *,
     market: str | None,
@@ -262,15 +268,15 @@ class Sectors(SyncAPIResource):
     def get_movers(
         self,
         *,
+        start_date: str,
+        end_date: str,
         market: str | None = None,
         scope: str | None = None,
-        start_date: str | None = None,
-        end_date: str | None = None,
     ) -> SectorMoversResponse:
         return self._get(
             "/api/qdata/v1/sector/movers",
             cast_to=SectorMoversResponse,
-            options={"params": _params(market=market, scope=scope, start_date=start_date, end_date=end_date)},
+            options={"params": _movers_params(market=market, scope=scope, start_date=start_date, end_date=end_date)},
         )
 
     def get_constituents(
@@ -781,15 +787,15 @@ class AsyncSectors(AsyncAPIResource):
     async def get_movers(
         self,
         *,
+        start_date: str,
+        end_date: str,
         market: str | None = None,
         scope: str | None = None,
-        start_date: str | None = None,
-        end_date: str | None = None,
     ) -> SectorMoversResponse:
         return await self._get(
             "/api/qdata/v1/sector/movers",
             cast_to=SectorMoversResponse,
-            options={"params": _params(market=market, scope=scope, start_date=start_date, end_date=end_date)},
+            options={"params": _movers_params(market=market, scope=scope, start_date=start_date, end_date=end_date)},
         )
 
     async def get_constituents(

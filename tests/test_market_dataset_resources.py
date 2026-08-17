@@ -221,6 +221,19 @@ def test_sector_movers_path_and_contract(monkeypatch) -> None:
         http_client.close()
     assert result["markets"]["cn"]["items"] == []
     assert seen[0].url.path == "/api/qdata/v1/sector/movers"
+    assert seen[0].url.params["start_date"] == "2026-08-01"
+    assert seen[0].url.params["end_date"] == "2026-08-12"
+
+
+def test_sector_movers_rejects_missing_date_range_before_request(monkeypatch) -> None:
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    http_client = httpx.Client(transport=httpx.MockTransport(lambda _request: pytest.fail("request must not be sent")))
+    client = Dojo(api_key="test", http_client=http_client)
+    try:
+        with pytest.raises(ValueError, match="start_date and end_date are required"):
+            client.sectors.get_movers(start_date=None, end_date=None)
+    finally:
+        http_client.close()
 
 
 def test_sector_movers_typed_response(monkeypatch) -> None:
@@ -254,7 +267,7 @@ def test_sector_movers_typed_response(monkeypatch) -> None:
     http_client = httpx.Client(transport=httpx.MockTransport(handler))
     client = Dojo(api_key="test", return_raw_data=False, http_client=http_client)
     try:
-        result = client.sectors.get_movers(market="cn")
+        result = client.sectors.get_movers(market="cn", start_date="2026-08-12", end_date="2026-08-12")
     finally:
         http_client.close()
     assert result.markets["cn"].items[0].level3_id == 7
