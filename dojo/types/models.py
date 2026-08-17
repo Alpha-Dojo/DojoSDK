@@ -545,7 +545,6 @@ class AttributionFactorWriteItem(DojoModel):
     importance: Literal["high", "medium", "low"] | None = None
     mechanism: LocalizedText | None = None
     event_time: str | None = None
-    generation_time: str | None = None
     payload_status: Literal["ready", "rejected"] = "ready"
     stance: Literal["positive", "negative", "neutral", "mixed"] | None = None
     attrs: Dict[str, Any] | None = None
@@ -555,6 +554,7 @@ class AttributionFactorWriteItem(DojoModel):
 
 class AttributionFactorWriteRequest(DojoModel):
     items: List[AttributionFactorWriteItem] = Field(min_length=1, max_length=10000)
+    generation_time: str | None = None
 
 
 class AttributionFactorWriteResult(DojoModel):
@@ -625,7 +625,6 @@ class SectorBriefExtractWriteItem(DojoModel):
     market: Literal["us", "cn", "hk"]
     sector_id: str = Field(min_length=1, max_length=128)
     as_of_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    generation_time: str | None = None
     brief_uid: str | None = Field(default=None, min_length=1, max_length=128)
     key_drivers: List[SectorBriefDriver] = Field(max_length=5)
     key_risks: List[SectorBriefRisk] = Field(max_length=4)
@@ -634,6 +633,7 @@ class SectorBriefExtractWriteItem(DojoModel):
 
 class SectorBriefExtractItem(SectorBriefExtractWriteItem):
     id: int | None = None
+    generation_time: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
 
@@ -645,6 +645,7 @@ class SectorBriefExtractListResponse(DojoModel):
 
 class SectorBriefExtractWriteRequest(DojoModel):
     items: List[SectorBriefExtractWriteItem] = Field(min_length=1, max_length=10000)
+    generation_time: str | None = None
 
 
 class SectorBriefExtractWriteResponse(DojoModel):

@@ -7,6 +7,7 @@ from dojo.resources.analysis import Analysis, AsyncAnalysis
 from dojo.types.models import AttributionFactorWriteResponse
 
 BODY = {
+    "generation_time": "2026-08-11T01:45:00Z",
     "items": [
         {
             "claim": {"zh": "盈利增长", "en": "Earnings growth"},
@@ -17,9 +18,8 @@ BODY = {
             "affected_tickers": ["AAPL"],
             "role": "explains_move",
             "payload_status": "ready",
-            "generation_time": "2026-08-11T01:45:00Z",
         }
-    ]
+    ],
 }
 
 
