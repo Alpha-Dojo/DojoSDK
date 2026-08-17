@@ -186,20 +186,22 @@ class Analysis(SyncAPIResource):
         event_time: str,
         event_summary: dict[str, Any],
         sector_impacts: list[dict[str, Any]],
+        generation_time: str | None = None,
     ) -> MarketDynamicsCreateResponse:
         """Create a single market dynamics record."""
+        payload = {
+            "market": market,
+            "trading_date": trading_date,
+            "event_time": event_time,
+            "event_summary": event_summary,
+            "sector_impacts": sector_impacts,
+        }
+        if generation_time is not None:
+            payload["generation_time"] = generation_time
         return self._post(
             "/api/qdata/v1/analysis/market_dynamics",
             cast_to=MarketDynamicsCreateResponse,
-            options={
-                "json": {
-                    "market": market,
-                    "trading_date": trading_date,
-                    "event_time": event_time,
-                    "event_summary": event_summary,
-                    "sector_impacts": sector_impacts,
-                }
-            },
+            options={"json": payload},
         )
 
     def update_market_dynamics(
@@ -431,20 +433,22 @@ class AsyncAnalysis(AsyncAPIResource):
         event_time: str,
         event_summary: dict[str, Any],
         sector_impacts: list[dict[str, Any]],
+        generation_time: str | None = None,
     ) -> MarketDynamicsCreateResponse:
         """Create a single market dynamics record asynchronously."""
+        payload = {
+            "market": market,
+            "trading_date": trading_date,
+            "event_time": event_time,
+            "event_summary": event_summary,
+            "sector_impacts": sector_impacts,
+        }
+        if generation_time is not None:
+            payload["generation_time"] = generation_time
         return await self._post(
             "/api/qdata/v1/analysis/market_dynamics",
             cast_to=MarketDynamicsCreateResponse,
-            options={
-                "json": {
-                    "market": market,
-                    "trading_date": trading_date,
-                    "event_time": event_time,
-                    "event_summary": event_summary,
-                    "sector_impacts": sector_impacts,
-                }
-            },
+            options={"json": payload},
         )
 
     async def update_market_dynamics(

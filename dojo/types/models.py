@@ -473,6 +473,7 @@ class MarketDynamicsItem(DojoModel):
     market: Literal["us", "hk", "cn"]
     trading_date: str
     event_time: str
+    generation_time: str | None = None
     event_summary: Dict[str, Any]
     sector_impacts: List[Dict[str, Any]]
 
@@ -500,6 +501,7 @@ class AttributionFactorItem(DojoModel):
     evidence: List[Dict[str, Any]] | None = None
     affected_tickers: List[str] | None = None
     event_time: str | None = None
+    generation_time: str | None = None
     attrs: Dict[str, Any] | None = None
 
 
@@ -543,6 +545,7 @@ class AttributionFactorWriteItem(DojoModel):
     importance: Literal["high", "medium", "low"] | None = None
     mechanism: LocalizedText | None = None
     event_time: str | None = None
+    generation_time: str | None = None
     payload_status: Literal["ready", "rejected"] = "ready"
     stance: Literal["positive", "negative", "neutral", "mixed"] | None = None
     attrs: Dict[str, Any] | None = None
@@ -569,6 +572,7 @@ class AttributionFactorWriteResult(DojoModel):
     claim: LocalizedText | None = None
     mechanism: LocalizedText | None = None
     event_time: str | None = None
+    generation_time: str | None = None
     evidence: Any = None
     affected_tickers: List[str] | None = None
     attrs: Any = None
@@ -621,6 +625,7 @@ class SectorBriefExtractWriteItem(DojoModel):
     market: Literal["us", "cn", "hk"]
     sector_id: str = Field(min_length=1, max_length=128)
     as_of_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    generation_time: str | None = None
     brief_uid: str | None = Field(default=None, min_length=1, max_length=128)
     key_drivers: List[SectorBriefDriver] = Field(max_length=5)
     key_risks: List[SectorBriefRisk] = Field(max_length=4)

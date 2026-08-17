@@ -17,6 +17,7 @@ BODY = {
             "affected_tickers": ["AAPL"],
             "role": "explains_move",
             "payload_status": "ready",
+            "generation_time": "2026-08-11T01:45:00Z",
         }
     ]
 }

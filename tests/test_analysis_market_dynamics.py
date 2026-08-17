@@ -9,6 +9,7 @@ PAYLOAD = {
     "market": "cn",
     "trading_date": "2026-08-11",
     "event_time": "2026-08-11T09:30:00+08:00",
+    "generation_time": "2026-08-11T01:45:00Z",
     "event_summary": {"category": "geo_military"},
     "sector_impacts": [],
 }
