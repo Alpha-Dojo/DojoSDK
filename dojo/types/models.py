@@ -474,6 +474,10 @@ class MarketDynamicsItem(DojoModel):
     trading_date: str
     event_time: str
     generation_time: str | None = None
+    event_rank: str | None = None
+    confidence: str | None = None
+    driver_status: str | None = None
+    index_evidence: str | None = None
     event_summary: Dict[str, Any]
     sector_impacts: List[Dict[str, Any]]
 

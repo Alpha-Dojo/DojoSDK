@@ -10,6 +10,10 @@ PAYLOAD = {
     "trading_date": "2026-08-11",
     "event_time": "2026-08-11T09:30:00+08:00",
     "generation_time": "2026-08-11T01:45:00Z",
+    "event_rank": "mainline",
+    "confidence": "high",
+    "driver_status": "verified",
+    "index_evidence": "上证指数上涨",
     "event_summary": {"category": "geo_military"},
     "sector_impacts": [],
 }

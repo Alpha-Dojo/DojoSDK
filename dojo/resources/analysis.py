@@ -187,12 +187,20 @@ class Analysis(SyncAPIResource):
         event_summary: dict[str, Any],
         sector_impacts: list[dict[str, Any]],
         generation_time: str | None = None,
+        event_rank: str | None = None,
+        confidence: str | None = None,
+        driver_status: str | None = None,
+        index_evidence: str | None = None,
     ) -> MarketDynamicsCreateResponse:
         """Create a single market dynamics record."""
         payload = {
             "market": market,
             "trading_date": trading_date,
             "event_time": event_time,
+            "event_rank": event_rank,
+            "confidence": confidence,
+            "driver_status": driver_status,
+            "index_evidence": index_evidence,
             "event_summary": event_summary,
             "sector_impacts": sector_impacts,
         }
@@ -434,12 +442,20 @@ class AsyncAnalysis(AsyncAPIResource):
         event_summary: dict[str, Any],
         sector_impacts: list[dict[str, Any]],
         generation_time: str | None = None,
+        event_rank: str | None = None,
+        confidence: str | None = None,
+        driver_status: str | None = None,
+        index_evidence: str | None = None,
     ) -> MarketDynamicsCreateResponse:
         """Create a single market dynamics record asynchronously."""
         payload = {
             "market": market,
             "trading_date": trading_date,
             "event_time": event_time,
+            "event_rank": event_rank,
+            "confidence": confidence,
+            "driver_status": driver_status,
+            "index_evidence": index_evidence,
             "event_summary": event_summary,
             "sector_impacts": sector_impacts,
         }
