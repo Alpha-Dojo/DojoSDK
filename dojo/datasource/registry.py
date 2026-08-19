@@ -36,6 +36,7 @@ class HFEndpointSpec:
     symbol_param: str = "symbol"
 
     limit_param: str = "limit"
+    offset_param: str = "offset"
     order_desc: bool = True
 
     # Projection (column pruning)
@@ -89,6 +90,7 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
     "/api/qdata/v1/stock/kline": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_stock_kline",
         path_template="data.parquet",
+        time_field="bar_time",
         symbol_field="symbol",
         json_columns=[],
         envelope="list",
@@ -145,54 +147,30 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         repo_id="AlphaDojo/dojo_sector_precomputed",
         path_template="sector_daily.parquet",
         json_columns=[],
+        time_field="trade_date",
+        start_param="start_date",
+        end_param="end_date",
         envelope="list",
     ),
     "/api/qdata/v1/sector/precomputed/ticker_daily": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_sector_precomputed",
         path_template="ticker_daily.parquet",
         json_columns=[],
-        envelope="list",
-    ),
-    "/api/qdata/v1/sector/precomputed/fundamentals_period": HFEndpointSpec(
-        repo_id="AlphaDojo/dojo_sector_precomputed",
-        path_template="fundamentals_period.parquet",
-        json_columns=[],
-        envelope="list",
-    ),
-    "/api/qdata/v1/sector/precomputed/market_benchmark_daily": HFEndpointSpec(
-        repo_id="AlphaDojo/dojo_sector_precomputed",
-        path_template="market_benchmark_daily.parquet",
-        json_columns=[],
-        envelope="list",
-    ),
-    "/api/qdata/v1/sector/precomputed/sector_alpha_factors_daily": HFEndpointSpec(
-        repo_id="AlphaDojo/dojo_sector_precomputed",
-        path_template="sector_alpha_factors_daily.parquet",
-        json_columns=[],
-        envelope="list",
-    ),
-    "/api/qdata/v1/sector/precomputed/ticker_alpha_factors_daily": HFEndpointSpec(
-        repo_id="AlphaDojo/dojo_sector_precomputed",
-        path_template="ticker_alpha_factors_daily.parquet",
-        json_columns=[],
-        envelope="list",
-    ),
-    "/api/qdata/v1/sector/precomputed/sector_horizon_metrics": HFEndpointSpec(
-        repo_id="AlphaDojo/dojo_sector_precomputed",
-        path_template="sector_horizon_metrics.parquet",
-        json_columns=[],
-        envelope="list",
-    ),
-    "/api/qdata/v1/sector/precomputed/theme_state_daily": HFEndpointSpec(
-        repo_id="AlphaDojo/dojo_sector_precomputed",
-        path_template="theme_state_daily.parquet",
-        json_columns=[],
+        time_field="trade_date",
+        start_param="start_date",
+        end_param="end_date",
         envelope="list",
     ),
     "/api/qdata/v1/analysis/market_dynamics": HFEndpointSpec(
         repo_id="AlphaDojo/dojo_market_dynamics",
         path_template="data.parquet",
         json_columns=[],
+        envelope="list",
+    ),
+    "/api/qdata/v1/analysis/attribution_factor": HFEndpointSpec(
+        repo_id="AlphaDojo/dojo_attribution_factor",
+        path_template="data.parquet",
+        json_columns=["claim", "mechanism", "evidence", "affected_tickers", "attrs"],
         envelope="list",
     ),
     # "/api/qdata/v1/analysis/topic_discoveries": HFEndpointSpec(

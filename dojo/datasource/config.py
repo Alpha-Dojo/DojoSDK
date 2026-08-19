@@ -11,6 +11,28 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value >= 0 else default
+
+
 @dataclass
 class HFConfig:
     """HuggingFace offline datasource config from environment variables."""
@@ -22,6 +44,9 @@ class HFConfig:
     cache_dir: str = os.path.expanduser("~/.cache/huggingface/hub")
     local_only: bool = False
     repo_prefix: str = "flowhale"
+    download_timeout_seconds: float = 60.0
+    etag_timeout_seconds: float = 10.0
+    max_download_retries: int = 1
 
     @classmethod
     def from_env(cls) -> "HFConfig":
@@ -33,6 +58,18 @@ class HFConfig:
             cache_dir=os.environ.get("DOJO_CACHE_DIR", os.path.expanduser("~/.cache/huggingface/hub")),
             local_only=_env_bool("DOJO_HF_OFFLINE", False),
             repo_prefix=os.environ.get("DOJO_HF_REPO_PREFIX", "flowhale"),
+            download_timeout_seconds=_env_float(
+                "DOJO_HF_DOWNLOAD_TIMEOUT",
+                60.0,
+            ),
+            etag_timeout_seconds=_env_float(
+                "DOJO_HF_ETAG_TIMEOUT",
+                10.0,
+            ),
+            max_download_retries=_env_int(
+                "DOJO_HF_MAX_RETRIES",
+                1,
+            ),
         )
 
 

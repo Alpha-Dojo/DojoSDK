@@ -8,113 +8,20 @@ from dojo.datasource.config import HFConfig
 from dojo.datasource.registry import HFEndpointSpec, resolve
 from dojo._exceptions import OfflineDataNotAvailableError
 from dojo.logging import logger
-import ctypes
 import threading
 import time
-
-
-class DownloadStalledError(Exception):
-    pass
-
-
-def _async_raise(tid, exctype):
-    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), ctypes.py_object(exctype))
-    if res == 0:
-        pass
-    elif res != 1:
-        ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(tid), None)
-
-
-_active_downloads = {}
-_active_downloads_lock = threading.Lock()
-
-
-try:
-    import huggingface_hub.utils._progress
-
-    original_tqdm = huggingface_hub.utils._progress.tqdm
-
-    class WatchdogTqdm(original_tqdm):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._tid = threading.get_ident()
-            with _active_downloads_lock:
-                _active_downloads[self._tid] = {"last_update_time": time.time(), "last_n": getattr(self, "n", 0)}
-
-        def update(self, n=1):
-            super().update(n)
-            with _active_downloads_lock:
-                if self._tid in _active_downloads:
-                    if getattr(self, "n", 0) > _active_downloads[self._tid].get("last_n", 0):
-                        _active_downloads[self._tid]["last_n"] = getattr(self, "n", 0)
-                        _active_downloads[self._tid]["last_update_time"] = time.time()
-
-        def close(self):
-            super().close()
-            with _active_downloads_lock:
-                if self._tid in _active_downloads:
-                    del _active_downloads[self._tid]
-
-    huggingface_hub.utils._progress.tqdm = WatchdogTqdm
-except ImportError:
-    pass
-
-# try:
-#     import modelscope.hub.file_download
-#     original_ms_tqdm = modelscope.hub.file_download.tqdm
-
-#     class WatchdogTqdmMS(original_ms_tqdm):
-#         def __init__(self, *args, **kwargs):
-#             super().__init__(*args, **kwargs)
-#             self._tid = threading.get_ident()
-#             with _active_downloads_lock:
-#                 _active_downloads[self._tid] = {"last_update_time": time.time(), "last_n": getattr(self, "n", 0)}
-
-#         def update(self, n=1):
-#             super().update(n)
-#             with _active_downloads_lock:
-#                 if self._tid in _active_downloads:
-#                     if getattr(self, "n", 0) > _active_downloads[self._tid].get("last_n", 0):
-#                         _active_downloads[self._tid]["last_n"] = getattr(self, "n", 0)
-#                         _active_downloads[self._tid]["last_update_time"] = time.time()
-
-#         def close(self):
-#             super().close()
-#             with _active_downloads_lock:
-#                 if self._tid in _active_downloads:
-#                     del _active_downloads[self._tid]
-
-#     modelscope.hub.file_download.tqdm = WatchdogTqdmMS
-# except Exception:
-#     pass
-
-_watchdog_started = False
-_watchdog_start_lock = threading.Lock()
-
-
-def _download_watchdog_loop():
-    while True:
-        time.sleep(1)
-        now = time.time()
-        with _active_downloads_lock:
-            for tid, info in list(_active_downloads.items()):
-                if now - info["last_update_time"] > 10:
-                    _async_raise(tid, DownloadStalledError)
-                    del _active_downloads[tid]
-
-
-def _start_watchdog():
-    global _watchdog_started
-    with _watchdog_start_lock:
-        if not _watchdog_started:
-            t = threading.Thread(target=_download_watchdog_loop, daemon=True, name="DojoSDK-DownloadWatchdog")
-            t.start()
-            _watchdog_started = True
+import weakref
 
 
 class HuggingFaceDataSource:
     _table_cache: dict[str, Any] = {}
     _df_cache: dict[str, Any] = {}
+    _download_path_cache: dict[tuple[str, ...], str] = {}
+    _download_locks: weakref.WeakValueDictionary[
+        tuple[str, ...],
+        threading.Lock,
+    ] = weakref.WeakValueDictionary()
+    _download_locks_guard = threading.Lock()
 
     def __init__(self, config: HFConfig | None = None) -> None:
         import threading
@@ -122,8 +29,8 @@ class HuggingFaceDataSource:
         self._cfg = config or HFConfig.from_env()
         self._bg_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+        self._preload_cancel_event = threading.Event()
         self._cleanup_lock = threading.Lock()
-        _start_watchdog()
 
     def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
         spec = resolve(path)
@@ -228,7 +135,13 @@ class HuggingFaceDataSource:
             except Exception as err:
                 logger.warning(f"Failed to warm companion file {spec.repo_id}/{template}: {err}")
 
-    def _load_companion_dataset(self, repo_id: str, template: str, params: dict[str, Any], ms_repo_id: str | None = None):
+    def _load_companion_dataset(
+        self,
+        repo_id: str,
+        template: str,
+        params: dict[str, Any],
+        ms_repo_id: str | None = None,
+    ):
         relative = self._render_template(template, params)
         cache_key = f"{repo_id}/{relative}"
         if cache_key in self._table_cache:
@@ -255,62 +168,156 @@ class HuggingFaceDataSource:
         except KeyError as e:
             raise OfflineDataNotAvailableError(f"Offline file path template {template!r} is missing required parameter {e}") from e
 
+    @classmethod
+    def _download_lock_for(cls, key: tuple[str, ...]) -> threading.Lock:
+        with cls._download_locks_guard:
+            return cls._download_locks.setdefault(key, threading.Lock())
+
+    @staticmethod
+    def _is_transient_download_error(error: Exception) -> bool:
+        import httpx
+        from huggingface_hub.errors import HfHubHTTPError
+
+        if isinstance(
+            error,
+            (
+                httpx.TimeoutException,
+                httpx.TransportError,
+                TimeoutError,
+                ConnectionError,
+            ),
+        ):
+            return True
+        if not isinstance(error, HfHubHTTPError):
+            return False
+        response = getattr(error, "response", None)
+        status_code = getattr(response, "status_code", None)
+        return status_code in {408, 429} or (isinstance(status_code, int) and status_code >= 500)
+
+    def _download_with_retries(
+        self,
+        *,
+        backend: str,
+        repo_id: str | None,
+        ms_repo_id: str | None,
+        filename: str | None,
+        kwargs: dict[str, Any],
+    ) -> str:
+        if backend == "modelscope":
+            from modelscope.hub.api import HubApi
+            from modelscope.hub.file_download import dataset_file_download
+
+            api = HubApi()
+            if self._cfg.modelscope_token:
+                api.login(self._cfg.modelscope_token)
+
+            ms_revision = kwargs.get("revision", "master")
+            if ms_revision == "main":
+                ms_revision = "master"
+
+            local_files_only = kwargs.get("local_files_only", False)
+            if not local_files_only:
+                try:
+                    files = api.get_dataset_files(
+                        ms_repo_id,
+                        revision=ms_revision,
+                    )
+                    for item in files:
+                        if item.get("Path") == filename and item.get("Revision"):
+                            ms_revision = item["Revision"]
+                            break
+                except Exception as error:
+                    logger.debug(f"Failed to fetch dataset files for {ms_repo_id}: " f"{error}")
+
+            def download() -> str:
+                return str(
+                    dataset_file_download(
+                        dataset_id=ms_repo_id,
+                        file_path=filename,
+                        revision=ms_revision,
+                        token=self._cfg.modelscope_token,
+                        local_files_only=local_files_only,
+                    )
+                )
+
+        else:
+            from huggingface_hub import constants, hf_hub_download
+
+            constants.HF_HUB_DOWNLOAD_TIMEOUT = max(
+                1,
+                int(self._cfg.download_timeout_seconds),
+            )
+            download_kwargs = dict(kwargs)
+            download_kwargs.setdefault(
+                "etag_timeout",
+                self._cfg.etag_timeout_seconds,
+            )
+
+            def download() -> str:
+                return str(hf_hub_download(**download_kwargs))
+
+        attempts = max(0, int(self._cfg.max_download_retries)) + 1
+        for attempt in range(1, attempts + 1):
+            started_at = time.monotonic()
+            try:
+                local_path = download()
+                logger.debug(
+                    "Offline dataset resolved: backend=%s repo=%s " "file=%s attempt=%s elapsed=%.3fs",
+                    backend,
+                    repo_id,
+                    filename,
+                    attempt,
+                    time.monotonic() - started_at,
+                )
+                return local_path
+            except Exception as error:
+                if attempt >= attempts or not self._is_transient_download_error(error):
+                    raise
+                delay = min(0.5 * (2 ** (attempt - 1)), 4.0)
+                logger.warning(
+                    "Transient offline download failure: backend=%s " "repo=%s file=%s attempt=%s/%s retry_in=%.1fs " "error=%s",
+                    backend,
+                    repo_id,
+                    filename,
+                    attempt,
+                    attempts,
+                    delay,
+                    type(error).__name__,
+                )
+                time.sleep(delay)
+        raise RuntimeError("unreachable offline download retry state")
+
     def _download_and_cleanup(self, **kwargs) -> str:
-        from huggingface_hub import hf_hub_download
         from dojo.datasource.network import resolve_backend
         import os
-        import threading
-        import time
 
-        tid = threading.get_ident()
         repo_id = kwargs.get("repo_id")
         ms_repo_id = kwargs.pop("ms_repo_id", repo_id)
         filename = kwargs.get("filename")
 
         backend = resolve_backend(self._cfg)
-
-        while True:
-            try:
-                if backend == "huggingface":
-                    with _active_downloads_lock:
-                        _active_downloads[tid] = {"last_update_time": time.time(), "last_n": 0}
-
-                if backend == "modelscope":
-                    from modelscope.hub.file_download import dataset_file_download
-                    from modelscope.hub.api import HubApi
-
-                    api = HubApi()
-                    if self._cfg.modelscope_token:
-                        api.login(self._cfg.modelscope_token)
-
-                    ms_revision = kwargs.get("revision", "master")
-                    if ms_revision == "main":
-                        ms_revision = "master"
-
-                    local_files_only = kwargs.get("local_files_only", False)
-                    if not local_files_only:
-                        try:
-                            files = api.get_dataset_files(ms_repo_id, revision=ms_revision)
-                            for f in files:
-                                if f.get("Path") == filename and f.get("Revision"):
-                                    ms_revision = f["Revision"]
-                                    break
-                        except Exception as e:
-                            logger.debug(f"Failed to fetch dataset files for {ms_repo_id}: {e}")
-                    local_path = dataset_file_download(
-                        dataset_id=ms_repo_id, file_path=filename, revision=ms_revision, token=self._cfg.modelscope_token, local_files_only=kwargs.get("local_files_only", False)
-                    )
-                else:
-                    local_path = hf_hub_download(**kwargs)
-                break
-            except DownloadStalledError:
-                logger.warning(f"Download for {repo_id}/{filename} stalled for >10s. Restarting {backend} download...")
-                time.sleep(1)
-            finally:
-                if backend == "huggingface":
-                    with _active_downloads_lock:
-                        if tid in _active_downloads:
-                            del _active_downloads[tid]
+        key = (
+            backend,
+            str(repo_id or ""),
+            str(ms_repo_id or ""),
+            str(kwargs.get("revision") or ""),
+            str(filename or ""),
+            str(kwargs.get("cache_dir") or ""),
+        )
+        force_download = bool(kwargs.get("force_download"))
+        lock = self._download_lock_for(key)
+        with lock:
+            cached_path = self._download_path_cache.get(key)
+            if not force_download and cached_path is not None and os.path.exists(cached_path):
+                return cached_path
+            local_path = self._download_with_retries(
+                backend=backend,
+                repo_id=repo_id,
+                ms_repo_id=ms_repo_id,
+                filename=filename,
+                kwargs=kwargs,
+            )
+            self._download_path_cache[key] = local_path
 
         if not repo_id:
             return local_path
@@ -371,6 +378,7 @@ class HuggingFaceDataSource:
         # Generic filtering: any param key that matches a column name is applied as an exact match filter
         ignore_params = {
             spec.limit_param,
+            spec.offset_param,
             spec.start_param,
             spec.end_param,
             spec.fields_param,
@@ -410,6 +418,9 @@ class HuggingFaceDataSource:
         if spec.time_field and spec.time_field in table.column_names:
             table = table.sort_by([(spec.time_field, "descending" if spec.order_desc else "ascending")])
 
+        offset = params.get(spec.offset_param)
+        if isinstance(offset, int) and offset > 0:
+            table = table.slice(offset)
         limit = params.get(spec.limit_param)
         if isinstance(limit, int) and limit > 0:
             table = table.slice(0, limit)
@@ -513,15 +524,22 @@ class HuggingFaceDataSource:
             self._bg_thread.join(timeout=2.0)
             logger.info("Stopped background sync thread.")
 
-    def preload(self, paths: list[str]) -> None:
+    def cancel_preload(self) -> None:
+        """Ask an in-flight preload to stop scheduling and waiting for work."""
+        self._preload_cancel_event.set()
+
+    def preload(self, paths: list[str]) -> bool:
         """Preload specific resources into cache ahead of time."""
+        import queue
+
         from dojo.datasource.registry import resolve
         from tqdm import tqdm
-        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         total = len(paths)
         if total == 0:
-            return
+            return True
+        cancel_event = threading.Event()
+        self._preload_cancel_event = cancel_event
 
         specs = [(i, path, resolve(path)) for i, path in enumerate(paths, start=1)]
         valid_specs = [(i, p, s) for i, p, s in specs if s]
@@ -539,10 +557,53 @@ class HuggingFaceDataSource:
             except Exception as e:
                 logger.error(f"[{i}/{total}] 预加载 {path} 失败: {e}")
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(_do_preload, i, path, spec) for i, path, spec in valid_specs]
-            for _ in tqdm(as_completed(futures), total=len(futures), desc="Preloading DojoSDK data"):
-                pass
+        work_queue: queue.Queue[tuple[int, str, HFEndpointSpec]] = queue.Queue()
+        completion_queue: queue.Queue[None] = queue.Queue()
+        for item in valid_specs:
+            work_queue.put(item)
+
+        def _worker() -> None:
+            while not cancel_event.is_set():
+                try:
+                    item = work_queue.get_nowait()
+                except queue.Empty:
+                    return
+                try:
+                    if not cancel_event.is_set():
+                        _do_preload(*item)
+                finally:
+                    completion_queue.put(None)
+
+        workers = [
+            threading.Thread(
+                target=_worker,
+                daemon=True,
+                name=f"DojoSDK-Preload-{index + 1}",
+            )
+            for index in range(min(10, len(valid_specs)))
+        ]
+        for worker in workers:
+            worker.start()
+
+        completed = 0
+        progress = tqdm(total=len(valid_specs), desc="Preloading DojoSDK data")
+        try:
+            while completed < len(valid_specs):
+                if cancel_event.is_set():
+                    logger.info("DojoSDK data preload cancelled.")
+                    return False
+                try:
+                    completion_queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                completed += 1
+                progress.update(1)
+        except BaseException:
+            cancel_event.set()
+            raise
+        finally:
+            progress.close()
+        return True
 
     def cleanup_cache(self) -> dict:
         """
@@ -586,103 +647,326 @@ class HuggingFaceDataSource:
                 size /= 1024.0
             return f"{size:.1f}PB"
 
-        result = {"freed_space": format_bytes(total_freed_bytes), "details": freed_summary, "message": "Cache cleanup complete."}
+        result = {
+            "freed_space": format_bytes(total_freed_bytes),
+            "details": freed_summary,
+            "message": "Cache cleanup complete.",
+        }
         logger.info(f"Cache cleanup complete. Total freed: {result['freed_space']}")
         return result
 
 
-class HuggingFaceKlineDataSource(HuggingFaceDataSource):
+class HuggingFaceAttributionFactorDataSource(HuggingFaceDataSource):
     """
-    A specialized HuggingFaceDataSource that pre-groups kline data by symbol
-    for O(1) fetch performance during offline simulation.
+    A specialized HuggingFaceDataSource for attribution factor analysis data.
+    Pre-computes 'sector_id_list' column on the Pandas DataFrame, caches it in memory,
+    and performs set-intersection filtering on pandas df.
     """
-
-    def __init__(self, config: HFConfig | None = None) -> None:
-        super().__init__(config)
-        self._grouped_cache: dict[str, dict[str, list[dict]]] = {}
 
     def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
         spec = resolve(path)
         if not spec:
             raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
 
-        return super().fetch(method=method, path=path, params=params, json=json)
+        if path != "/api/qdata/v1/analysis/attribution_factor":
+            return super().fetch(method=method, path=path, params=params, json=json)
 
-    def preload(self, paths: list[str]) -> None:
-        super().preload(paths)
-        self.fetch_df(path="/api/qdata/v1/stock/kline", params={}, refresh=True)
-
-    def _fast_fetch_kline(self, path: str, spec: Any, params: dict[str, Any], json_body: Any | None) -> Any:
         merged = dict(params)
-        if isinstance(json_body, dict):
-            merged.update(json_body)
+        if isinstance(json, dict):
+            merged.update(json)
 
-        # 1. Ensure the underlying dataset is loaded and cached
-        table = self._load_dataset(spec, merged)
-        cache_key = f"{spec.repo_id}/{self._render_template(spec.path_template, merged)}"
+        df = self._get_cached_attribution_factor_df(path)
 
-        # 2. Pre-group data if not already done
-        if cache_key not in self._grouped_cache:
-            self._grouped_cache[cache_key] = self._build_grouped_data(table, spec)
+        # 1. sector_id filtering using sector_id_list
+        sector_id_param = merged.get("sector_id")
+        if sector_id_param is not None and "sector_id_list" in df.columns:
+            if isinstance(sector_id_param, (int, str)):
+                target_set = {s.strip() for s in str(sector_id_param).replace(",", "/").split("/") if s.strip()}
+            elif isinstance(sector_id_param, (list, tuple, set)):
+                target_set = set()
+                for item in sector_id_param:
+                    for s in str(item).replace(",", "/").split("/"):
+                        if s.strip():
+                            target_set.add(s.strip())
+            else:
+                target_set = set()
 
-        grouped_data = self._grouped_cache[cache_key]
+            if target_set:
+                df = df[df["sector_id_list"].apply(lambda lst: bool(target_set.intersection(lst)))]
 
-        # 3. Resolve requested symbols
-        symbols = merged.get(spec.symbol_param, "")
-        if isinstance(symbols, str):
-            symbols = symbols.split(",") if "," in symbols else [symbols]
-        elif not isinstance(symbols, (list, tuple, set)):
-            symbols = [symbols]
+        # 2. scope filtering (l1, l2, l3) using dojo_sector_info dataset
+        scope_param = merged.get("scope")
+        if scope_param is not None and "sector_id_list" in df.columns:
+            target_levels = set()
+            if isinstance(scope_param, (int, str)):
+                parts = [p.strip().lower() for p in str(scope_param).replace(",", "/").split("/") if p.strip()]
+            elif isinstance(scope_param, (list, tuple, set)):
+                parts = [str(p).strip().lower() for p in scope_param if str(p).strip()]
+            else:
+                parts = []
 
-        # 4. O(1) Fast fetch
-        limit = merged.get(spec.limit_param)
-        results = []
-        for sym in symbols:
-            if not sym:
+            for p in parts:
+                if p in ("l1", "1"):
+                    target_levels.add(1)
+                elif p in ("l2", "2"):
+                    target_levels.add(2)
+                elif p in ("l3", "3"):
+                    target_levels.add(3)
+
+            if target_levels:
+                try:
+                    df_sector = self.fetch_df(path="/api/qdata/v1/sector/info")
+                    id_col = "id" if "id" in df_sector.columns else ("sector_id" if "sector_id" in df_sector.columns else None)
+                    if id_col and "level" in df_sector.columns:
+                        matching_sectors = df_sector[df_sector["level"].isin(target_levels)][id_col].dropna().astype(str).unique()
+                        scope_sector_ids = set(matching_sectors)
+                        if scope_sector_ids:
+                            df = df[df["sector_id_list"].apply(lambda lst: bool(scope_sector_ids.intersection(lst)))]
+                except Exception as e:
+                    logger.warning(f"Failed to filter by scope using sector_info: {e}")
+
+        # 3. Generic column filters (e.g. market, factor_topic, role, etc.)
+        ignored = {
+            spec.limit_param,
+            spec.offset_param,
+            spec.start_param,
+            spec.end_param,
+            spec.fields_param,
+            "sector_id",
+            "sector_id_list",
+            "scope",
+        }
+        for key, value in merged.items():
+            if key in ignored or value is None or key not in df.columns:
                 continue
-            sym_rows = grouped_data.get(sym, [])
-            if isinstance(limit, int) and limit > 0:
-                sym_rows = sym_rows[:limit]
-            results.extend(sym_rows)
+            if isinstance(value, (list, tuple, set)):
+                df = df[df[key].isin(value)]
+            else:
+                df = df[df[key].eq(value)]
 
-        data: Any = {"total_num": len(results), "data": results} if spec.envelope == "list" else (results[0] if results else {})
-        return {"code": 0, "message": "ok", "data": data}
+        # 3. Time filtering & sorting
+        if spec.time_field and spec.time_field in df.columns:
+            time_values = df[spec.time_field]
 
-    def _build_grouped_data(self, table, spec) -> dict[str, list[dict]]:
+            def boundary(value: Any) -> Any:
+                return pd.to_datetime(value) if pd.api.types.is_datetime64_any_dtype(time_values) else value
+
+            if merged.get(spec.start_param) is not None:
+                df = df[time_values.ge(boundary(merged[spec.start_param]))]
+            if merged.get(spec.end_param) is not None:
+                df = df[df[spec.time_field].le(boundary(merged[spec.end_param]))]
+            df = df.sort_values(spec.time_field, ascending=not spec.order_desc)
+
+        # 4. Limit slicing
+        offset = merged.get(spec.offset_param)
+        if isinstance(offset, int) and offset > 0:
+            df = df.iloc[offset:]
+        limit = merged.get(spec.limit_param)
+        if isinstance(limit, int) and limit > 0:
+            df = df.iloc[:limit]
+
+        # 5. Field projection
+        if spec.fields_param and merged.get(spec.fields_param):
+            fields = [field for field in merged[spec.fields_param] if field in df.columns]
+            df = df[fields]
+
+        # 6. Convert to dict list and parse JSON columns
+        rows = df.to_dict(orient="records")
+        json_cols = spec.json_columns or [
+            "claim",
+            "mechanism",
+            "evidence",
+            "affected_tickers",
+            "attrs",
+        ]
+        import json as json_module
         import datetime
-        import json
-        from collections import defaultdict
-
-        rows = table.to_pylist()
-
-        json_cols = spec.json_columns or []
-        if not json_cols and table.schema.metadata and b"dojosdk:json_columns" in table.schema.metadata:
-            json_cols = table.schema.metadata[b"dojosdk:json_columns"].decode("utf-8").split(",")
-
-        json_cols_set = set(json_cols)
 
         for row in rows:
-            for col in json_cols_set:
+            row.pop("sector_id_list", None)
+            for col in json_cols:
                 val = row.get(col)
                 if isinstance(val, str):
                     try:
-                        row[col] = json.loads(val)
-                    except json.JSONDecodeError:
+                        row[col] = json_module.loads(val)
+                    except Exception:
                         pass
+            for key, value in row.items():
+                if isinstance(value, (datetime.datetime, datetime.date)):
+                    row[key] = value.isoformat()
+                elif isinstance(value, (list, dict, tuple, set)):
+                    pass
+                elif pd.isna(value):
+                    row[key] = None
 
-            for k, v in row.items():
-                if isinstance(v, (datetime.datetime, datetime.date)):
-                    row[k] = v.isoformat()
+        data: Any = {"total_num": len(rows), "data": rows} if spec.envelope == "list" else (rows[0] if rows else {})
+        return {"code": 0, "message": "ok", "data": data}
 
-        grouped = defaultdict(list)
-        sym_field = spec.symbol_field
+    def _get_cached_attribution_factor_df(self, path: str) -> pd.DataFrame:
+        cache_key = f"attribution_factor_df:{path}"
+        if cache_key in self._df_cache:
+            return self._df_cache[cache_key].copy()
+
+        df = self.fetch_df(path=path)
+        if "sector_id" in df.columns or "sector_ref" in df.columns:
+
+            def canonical_sector_ref(row):
+                sector_ref = row.get("sector_ref")
+                if sector_ref is not None and not pd.isna(sector_ref):
+                    text = str(sector_ref).strip()
+                    if text.count("/") == 2 and all(text.split("/")):
+                        return text
+                sector_id = row.get("sector_id")
+                if sector_id is not None and not pd.isna(sector_id):
+                    text = str(sector_id).strip()
+                    if text.count("/") == 2 and all(text.split("/")):
+                        return text
+                return None
+
+            def parse_sector_id_list(val):
+                if pd.isna(val) or val is None:
+                    return []
+                val_str = str(val).strip()
+                if not val_str:
+                    return []
+                return [s.strip() for s in val_str.split("/") if s.strip()]
+
+            df["sector_ref"] = df.apply(canonical_sector_ref, axis=1)
+            df["sector_id_list"] = df["sector_ref"].apply(parse_sector_id_list)
+
+        self._df_cache[cache_key] = df
+        return df.copy()
+
+
+class StockDataSource(HuggingFaceAttributionFactorDataSource):
+    """
+    A specialized HuggingFaceDataSource for stock endpoints that adapts stock-specific request parameters
+    (e.g., mapping `symbols` parameter to `ticker` column filtering for `/api/qdata/v1/stock/ystock_info`).
+    """
+
+    def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
+        params = dict(params) if params else {}
+
+        if path == "/api/qdata/v1/stock/ystock_info":
+            symbols_val = params.get("symbols")
+            if symbols_val is None and isinstance(json, dict):
+                symbols_val = json.get("symbols")
+
+            if symbols_val is not None and "ticker" not in params:
+                if isinstance(symbols_val, str) and "," in symbols_val:
+                    ticker_val = [s.strip() for s in symbols_val.split(",") if s.strip()]
+                else:
+                    ticker_val = symbols_val
+                params["ticker"] = ticker_val
+
+        return super().fetch(method=method, path=path, params=params, json=json)
+
+
+class HuggingFaceKlineDataSource(StockDataSource):
+    """
+    A specialized HuggingFaceDataSource that pre-groups kline data by symbol
+    for O(1) fetch performance during offline simulation.
+    """
+
+    def fetch(self, *, method: str, path: str, params: dict[str, Any], json: Any | None = None) -> Any:
+        spec = resolve(path)
+        if not spec:
+            raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
+        if path != "/api/qdata/v1/stock/kline":
+            return super().fetch(method=method, path=path, params=params, json=json)
+
+        merged = dict(params)
+        if isinstance(json, dict):
+            merged.update(json)
+
+        df = self.fetch_df(path=path)
+        symbol = merged.get(spec.symbol_param)
+        if symbol is not None:
+            symbols = symbol.split(",") if isinstance(symbol, str) and "," in symbol else symbol
+            if isinstance(symbols, (list, tuple, set)):
+                symbols = list(dict.fromkeys(symbols))
+            if df.index.name in {spec.symbol_field, f"index_{spec.symbol_field}"}:
+                if isinstance(symbols, list):
+                    available = [value for value in symbols if value in df.index]
+                    df = df.loc[available] if available else df.iloc[:0]
+                else:
+                    df = df.loc[[symbols]] if symbols in df.index else df.iloc[:0]
+            else:
+                df = df[(df[spec.symbol_field].isin(symbols) if isinstance(symbols, list) else df[spec.symbol_field].eq(symbols))]
+
+        ignored = {
+            spec.limit_param,
+            spec.offset_param,
+            spec.start_param,
+            spec.end_param,
+            spec.fields_param,
+            spec.symbol_param,
+            "index",
+        }
+        for key, value in merged.items():
+            if key in ignored or value is None or key not in df.columns:
+                continue
+            df = df[(df[key].isin(value) if isinstance(value, (list, tuple, set)) else df[key].eq(value))]
+
+        if spec.time_field and spec.time_field in df.columns:
+            if merged.get(spec.start_param) is not None:
+                df = df[df[spec.time_field].ge(merged[spec.start_param])]
+            if merged.get(spec.end_param) is not None:
+                df = df[df[spec.time_field].le(merged[spec.end_param])]
+            df = df.sort_values(spec.time_field, ascending=not spec.order_desc)
+
+        index = merged.get("index")
+        if isinstance(index, int) and not isinstance(index, bool):
+            df = df.iloc[[index]] if -len(df) <= index < len(df) else df.iloc[:0]
+
+        offset = merged.get(spec.offset_param)
+        if isinstance(offset, int) and offset > 0:
+            df = df.iloc[offset:]
+        limit = merged.get(spec.limit_param)
+        if isinstance(limit, int) and limit > 0:
+            df = df.iloc[:limit]
+
+        if spec.fields_param and merged.get(spec.fields_param):
+            fields = [field for field in merged[spec.fields_param] if field in df.columns]
+            df = df[fields]
+
+        import datetime
+
+        rows = df.to_dict(orient="records")
         for row in rows:
-            sym = row.get(sym_field)
-            if sym is not None:
-                grouped[sym].append(row)
+            for key, value in row.items():
+                if isinstance(value, (datetime.datetime, datetime.date)):
+                    row[key] = value.isoformat()
+                elif pd.isna(value):
+                    row[key] = None
 
-        if spec.time_field:
-            for sym, sym_rows in grouped.items():
-                sym_rows.sort(key=lambda x: x.get(spec.time_field, ""), reverse=spec.order_desc)
+        data: Any = {"total_num": len(rows), "data": rows} if spec.envelope == "list" else (rows[0] if rows else {})
+        return {"code": 0, "message": "ok", "data": data}
 
-        return dict(grouped)
+    def preload(self, paths: list[str]) -> bool:
+        if not super().preload(paths):
+            return False
+        cancel_event = self._preload_cancel_event
+        completed = threading.Event()
+        errors: list[Exception] = []
+
+        def _warm_kline() -> None:
+            try:
+                self.fetch_df(path="/api/qdata/v1/stock/kline", params={}, refresh=True)
+            except Exception as error:
+                errors.append(error)
+            finally:
+                completed.set()
+
+        threading.Thread(
+            target=_warm_kline,
+            daemon=True,
+            name="DojoSDK-Preload-Kline",
+        ).start()
+        while not completed.wait(timeout=0.1):
+            if cancel_event.is_set():
+                logger.info("DojoSDK kline preload cancelled.")
+                return False
+        if errors:
+            raise errors[0]
+        return True

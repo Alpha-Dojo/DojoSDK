@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from dojo.resources.base import SyncAPIResource, AsyncAPIResource
+from dojo.resources.base import AsyncAPIResource, SyncAPIResource, normalize_naive_iso_datetime
 from dojo.types.models import (
     ForexCurrentQuoteResponse,
     ForexKlineResponse,
@@ -62,9 +62,9 @@ class Forex(SyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if limit is not None:
             params["limit"] = limit
         return self._get("/api/qdata/v1/forex/kline", cast_to=ForexKlineResponse, options={"params": params})
@@ -129,9 +129,9 @@ class AsyncForex(AsyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if limit is not None:
             params["limit"] = limit
         return await self._get("/api/qdata/v1/forex/kline", cast_to=ForexKlineResponse, options={"params": params})

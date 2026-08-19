@@ -1,7 +1,7 @@
 from __future__ import annotations
-from typing import Any, List, Dict
+from typing import Any, List
 import pandas as pd
-from dojo.resources.base import SyncAPIResource, AsyncAPIResource
+from dojo.resources.base import AsyncAPIResource, SyncAPIResource, normalize_naive_iso_datetime
 from dojo.types.models import (
     CompetitorsResponse,
     RiskMetricsResponse,
@@ -40,7 +40,11 @@ class Stocks(SyncAPIResource):
         params: dict[str, Any] = {"symbol": symbol}
         if limit is not None:
             params["limit"] = limit
-        return self._get("/api/qdata/v1/stocks/competitors", cast_to=CompetitorsResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks/competitors",
+            cast_to=CompetitorsResponse,
+            options={"params": params},
+        )
 
     def get_risk_metrics(
         self,
@@ -95,7 +99,11 @@ class Stocks(SyncAPIResource):
             params["lookback"] = lookback
         if benchmark_ticker is not None:
             params["benchmark_ticker"] = benchmark_ticker
-        return self._get("/api/qdata/v1/stocks/risk-metrics", cast_to=RiskMetricsResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks/risk-metrics",
+            cast_to=RiskMetricsResponse,
+            options={"params": params},
+        )
 
     def get_market_history(
         self,
@@ -160,7 +168,11 @@ class Stocks(SyncAPIResource):
             params["start"] = start
         if end is not None:
             params["end"] = end
-        return self._get("/api/qdata/v1/stocks/market", cast_to=MarketHistoryResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks/market",
+            cast_to=MarketHistoryResponse,
+            options={"params": params},
+        )
 
     def get_quote(self, *, symbols: List[str] | None = None) -> CurrentQuoteResponse:
         """Retrieves the current quote pricing for a list of stocks.
@@ -172,8 +184,12 @@ class Stocks(SyncAPIResource):
         """
         params: dict[str, Any] = {}
         if symbols is not None:
-            params["symbols"] = symbols
-        return self._get("/api/qdata/v1/stocks/current_quote", cast_to=CurrentQuoteResponse, options={"params": params})
+            params["symbols"] = ",".join(symbols)
+        return self._get(
+            "/api/qdata/v1/stocks/current_quote",
+            cast_to=CurrentQuoteResponse,
+            options={"params": params},
+        )
 
     quote = get_quote
 
@@ -185,7 +201,11 @@ class Stocks(SyncAPIResource):
         body : dict
             Request body payload (e.g. containing stock lists).
         """
-        return self._post("/api/qdata/v1/stocks/current_quote", cast_to=CurrentQuoteResponse, options={"json": body})
+        return self._post(
+            "/api/qdata/v1/stocks/current_quote",
+            cast_to=CurrentQuoteResponse,
+            options={"json": body},
+        )
 
     def get_financials(
         self,
@@ -217,7 +237,11 @@ class Stocks(SyncAPIResource):
             params["start_date"] = start_date
         if end_date is not None:
             params["end_date"] = end_date
-        return self._get("/api/qdata/v1/stocks/financials", cast_to=FinancialsResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks/financials",
+            cast_to=FinancialsResponse,
+            options={"params": params},
+        )
 
     def get_history_quote(
         self,
@@ -241,10 +265,14 @@ class Stocks(SyncAPIResource):
         if symbol is not None:
             params["symbol"] = symbol
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if limit is not None:
             params["limit"] = limit
-        return self._get("/api/qdata/v1/stocks/history_quote", cast_to=MarketHistoryResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks/history_quote",
+            cast_to=MarketHistoryResponse,
+            options={"params": params},
+        )
 
     def get_info(self, *, symbol: str | None = None) -> StockInfoResponse:
         """Retrieves general stock basic info.
@@ -257,7 +285,11 @@ class Stocks(SyncAPIResource):
         params: dict[str, Any] = {}
         if symbol is not None:
             params["symbol"] = symbol
-        return self._get("/api/qdata/v1/stocks", cast_to=StockInfoResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks",
+            cast_to=StockInfoResponse,
+            options={"params": params},
+        )
 
     def get_news(
         self,
@@ -282,7 +314,11 @@ class Stocks(SyncAPIResource):
             params["page"] = page
         if page_size is not None:
             params["page_size"] = page_size
-        return self._get("/api/qdata/v1/stocks/news", cast_to=StockNewsResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks/news",
+            cast_to=StockNewsResponse,
+            options={"params": params},
+        )
 
     news = get_news
 
@@ -329,7 +365,11 @@ class Stocks(SyncAPIResource):
             params["order_type"] = order_type
         if include_fields is not None:
             params["include_fields"] = include_fields
-        return self._get("/api/qdata/v1/stocks/sentiments", cast_to=StockSentimentResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks/sentiments",
+            cast_to=StockSentimentResponse,
+            options={"params": params},
+        )
 
     def get_ystock_info(
         self,
@@ -378,7 +418,11 @@ class Stocks(SyncAPIResource):
             params["only_simple_fields"] = only_simple_fields
         if return_field_list is not None:
             params["return_field_list"] = return_field_list
-        return self._get("/api/qdata/v1/stock/ystock_info", cast_to=YStockInfoResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stock/ystock_info",
+            cast_to=YStockInfoResponse,
+            options={"params": params},
+        )
 
     list = get_ystock_info
 
@@ -416,16 +460,20 @@ class Stocks(SyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if price_adj_type is not None:
             params["price_adj_type"] = price_adj_type
         if price_adj_date is not None:
-            params["price_adj_date"] = price_adj_date
+            params["price_adj_date"] = normalize_naive_iso_datetime(price_adj_date)
         if limit is not None:
             params["limit"] = limit
-        return self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stock/kline",
+            cast_to=StockKlineResponse,
+            options={"params": params},
+        )
 
     kline = get_kline
 
@@ -443,7 +491,7 @@ class Stocks(SyncAPIResource):
         raw_response = self._client._data_source.fetch(method="GET", path="/api/qdata/v1/stock/kline", params=params)["data"]
         response = StockKlineResponse.model_validate(raw_response)
 
-        return getattr(response, "klines", response.data)
+        return response.data
 
     def get_all_klines_with_df(self) -> "pd.DataFrame":  # type: ignore
         """Retrieves offline stock K-line data directly as a pandas DataFrame.
@@ -492,12 +540,16 @@ class Stocks(SyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if window_limit is not None:
             params["window_limit"] = window_limit
-        return self._get("/api/qdata/v1/stock/kline_cs", cast_to=StockKlineCSResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stock/kline_cs",
+            cast_to=StockKlineCSResponse,
+            options={"params": params},
+        )
 
     def get_market_summary(self) -> StockMarketSummaryResponse:
         """Retrieves valuation market summaries across different stock markets."""
@@ -505,7 +557,10 @@ class Stocks(SyncAPIResource):
 
     def get_sector_industry_summary(self) -> StockSectorIndustrySummaryResponse:
         """Retrieves industry/sector valuation comparison summaries."""
-        return self._get("/api/qdata/v1/stock/sector_industry_summary", cast_to=StockSectorIndustrySummaryResponse)
+        return self._get(
+            "/api/qdata/v1/stock/sector_industry_summary",
+            cast_to=StockSectorIndustrySummaryResponse,
+        )
 
     def get_kline_interval_stat(
         self,
@@ -547,12 +602,16 @@ class Stocks(SyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if window_limit is not None:
             params["window_limit"] = window_limit
-        return self._get("/api/qdata/v1/stock/kline_interval_stat", cast_to=StockKlineIntervalStatResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stock/kline_interval_stat",
+            cast_to=StockKlineIntervalStatResponse,
+            options={"params": params},
+        )
 
     def get_stocks_market_summary(
         self,
@@ -617,7 +676,11 @@ class Stocks(SyncAPIResource):
             params["start"] = start
         if end is not None:
             params["end"] = end
-        return self._get("/api/qdata/v1/stocks/market-summary", cast_to=StocksMarketSummaryResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stocks/market-summary",
+            cast_to=StocksMarketSummaryResponse,
+            options={"params": params},
+        )
 
     def get_event_remind(
         self,
@@ -642,7 +705,11 @@ class Stocks(SyncAPIResource):
             params["page"] = page
         if page_size is not None:
             params["page_size"] = page_size
-        return self._get("/api/qdata/v1/stock/event_remind", cast_to=StockEventRemindResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stock/event_remind",
+            cast_to=StockEventRemindResponse,
+            options={"params": params},
+        )
 
     events = get_event_remind
 
@@ -652,6 +719,7 @@ class Stocks(SyncAPIResource):
         symbol: str,
         report_type: str | None = None,
         end_date: str | None = None,
+        public_date: str | None = None,
         limit: int | None = None,
     ) -> StockFinIndicatorsResponse:
         """Retrieves main financial indicators for a stock.
@@ -672,9 +740,15 @@ class Stocks(SyncAPIResource):
             params["report_type"] = report_type
         if end_date is not None:
             params["end_date"] = end_date
+        if public_date is not None:
+            params["public_date"] = public_date
         if limit is not None:
             params["limit"] = limit
-        return self._get("/api/qdata/v1/stock/fin_indicators", cast_to=StockFinIndicatorsResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stock/fin_indicators",
+            cast_to=StockFinIndicatorsResponse,
+            options={"params": params},
+        )
 
     fin_indicators = get_fin_indicators
 
@@ -701,7 +775,11 @@ class Stocks(SyncAPIResource):
             params["page"] = page
         if page_size is not None:
             params["page_size"] = page_size
-        return self._get("/api/qdata/v1/stock/main_income", cast_to=StockMainIncomeResponse, options={"params": params})
+        return self._get(
+            "/api/qdata/v1/stock/main_income",
+            cast_to=StockMainIncomeResponse,
+            options={"params": params},
+        )
 
     main_income = get_main_income
 
@@ -721,7 +799,11 @@ class AsyncStocks(AsyncAPIResource):
         params: dict[str, Any] = {"symbol": symbol}
         if limit is not None:
             params["limit"] = limit
-        return await self._get("/api/qdata/v1/stocks/competitors", cast_to=CompetitorsResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks/competitors",
+            cast_to=CompetitorsResponse,
+            options={"params": params},
+        )
 
     async def get_risk_metrics(
         self,
@@ -776,7 +858,11 @@ class AsyncStocks(AsyncAPIResource):
             params["lookback"] = lookback
         if benchmark_ticker is not None:
             params["benchmark_ticker"] = benchmark_ticker
-        return await self._get("/api/qdata/v1/stocks/risk-metrics", cast_to=RiskMetricsResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks/risk-metrics",
+            cast_to=RiskMetricsResponse,
+            options={"params": params},
+        )
 
     async def get_market_history(
         self,
@@ -841,7 +927,11 @@ class AsyncStocks(AsyncAPIResource):
             params["start"] = start
         if end is not None:
             params["end"] = end
-        return await self._get("/api/qdata/v1/stocks/market", cast_to=MarketHistoryResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks/market",
+            cast_to=MarketHistoryResponse,
+            options={"params": params},
+        )
 
     async def get_quote(self, *, symbols: List[str] | None = None) -> CurrentQuoteResponse:
         """Retrieves the current quote pricing asynchronously.
@@ -853,8 +943,12 @@ class AsyncStocks(AsyncAPIResource):
         """
         params: dict[str, Any] = {}
         if symbols is not None:
-            params["symbols"] = symbols
-        return await self._get("/api/qdata/v1/stocks/current_quote", cast_to=CurrentQuoteResponse, options={"params": params})
+            params["symbols"] = ",".join(symbols)
+        return await self._get(
+            "/api/qdata/v1/stocks/current_quote",
+            cast_to=CurrentQuoteResponse,
+            options={"params": params},
+        )
 
     quote = get_quote
 
@@ -866,7 +960,11 @@ class AsyncStocks(AsyncAPIResource):
         body : dict
             Request body payload.
         """
-        return await self._post("/api/qdata/v1/stocks/current_quote", cast_to=CurrentQuoteResponse, options={"json": body})
+        return await self._post(
+            "/api/qdata/v1/stocks/current_quote",
+            cast_to=CurrentQuoteResponse,
+            options={"json": body},
+        )
 
     async def get_financials(
         self,
@@ -898,7 +996,11 @@ class AsyncStocks(AsyncAPIResource):
             params["start_date"] = start_date
         if end_date is not None:
             params["end_date"] = end_date
-        return await self._get("/api/qdata/v1/stocks/financials", cast_to=FinancialsResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks/financials",
+            cast_to=FinancialsResponse,
+            options={"params": params},
+        )
 
     async def get_history_quote(
         self,
@@ -922,10 +1024,14 @@ class AsyncStocks(AsyncAPIResource):
         if symbol is not None:
             params["symbol"] = symbol
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if limit is not None:
             params["limit"] = limit
-        return await self._get("/api/qdata/v1/stocks/history_quote", cast_to=MarketHistoryResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks/history_quote",
+            cast_to=MarketHistoryResponse,
+            options={"params": params},
+        )
 
     async def get_info(self, *, symbol: str | None = None) -> StockInfoResponse:
         """Retrieves general stock basic info asynchronously.
@@ -938,7 +1044,11 @@ class AsyncStocks(AsyncAPIResource):
         params: dict[str, Any] = {}
         if symbol is not None:
             params["symbol"] = symbol
-        return await self._get("/api/qdata/v1/stocks", cast_to=StockInfoResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks",
+            cast_to=StockInfoResponse,
+            options={"params": params},
+        )
 
     async def get_news(
         self,
@@ -963,7 +1073,11 @@ class AsyncStocks(AsyncAPIResource):
             params["page"] = page
         if page_size is not None:
             params["page_size"] = page_size
-        return await self._get("/api/qdata/v1/stocks/news", cast_to=StockNewsResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks/news",
+            cast_to=StockNewsResponse,
+            options={"params": params},
+        )
 
     news = get_news
 
@@ -1010,7 +1124,11 @@ class AsyncStocks(AsyncAPIResource):
             params["order_type"] = order_type
         if include_fields is not None:
             params["include_fields"] = include_fields
-        return await self._get("/api/qdata/v1/stocks/sentiments", cast_to=StockSentimentResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks/sentiments",
+            cast_to=StockSentimentResponse,
+            options={"params": params},
+        )
 
     async def get_ystock_info(
         self,
@@ -1059,7 +1177,11 @@ class AsyncStocks(AsyncAPIResource):
             params["only_simple_fields"] = only_simple_fields
         if return_field_list is not None:
             params["return_field_list"] = return_field_list
-        return await self._get("/api/qdata/v1/stock/ystock_info", cast_to=YStockInfoResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stock/ystock_info",
+            cast_to=YStockInfoResponse,
+            options={"params": params},
+        )
 
     list = get_ystock_info
 
@@ -1097,20 +1219,24 @@ class AsyncStocks(AsyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if price_adj_type is not None:
             params["price_adj_type"] = price_adj_type
         if price_adj_date is not None:
-            params["price_adj_date"] = price_adj_date
+            params["price_adj_date"] = normalize_naive_iso_datetime(price_adj_date)
         if limit is not None:
             params["limit"] = limit
-        return await self._get("/api/qdata/v1/stock/kline", cast_to=StockKlineResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stock/kline",
+            cast_to=StockKlineResponse,
+            options={"params": params},
+        )
 
     kline = get_kline
 
-    async def get_all_klines(self, *, symbols: List[str] | None = None) -> List[Dict]:
+    async def get_all_klines(self, *, symbols: List[str] | None = None) -> List[StockKlineResponseItem]:
         """Retrieves offline stock K-line data asynchronously.
 
         This method fetches directly from the offline dataset.
@@ -1122,21 +1248,27 @@ class AsyncStocks(AsyncAPIResource):
             params["symbol"] = ",".join(symbols)
 
         # Force offline fetch
-        import asyncio
+        import anyio
 
-        raw_response = await asyncio.to_thread(self._client._data_source.fetch, method="GET", path="/api/qdata/v1/stock/kline", params=params)
-        response = raw_response["data"]
+        raw_response = await anyio.to_thread.run_sync(
+            lambda: self._client._data_source.fetch(
+                method="GET",
+                path="/api/qdata/v1/stock/kline",
+                params=params,
+            )
+        )
+        response = StockKlineResponse.model_validate(raw_response["data"])
 
-        return response.get("klines", response.get("data", []))
+        return response.data
 
     async def get_all_klines_with_df(self) -> "pd.DataFrame":  # type: ignore
         """Retrieves offline stock K-line data directly as a pandas DataFrame asynchronously.
 
         This method leverages the data source to fetch and cache a Pandas DataFrame.
         """
-        import asyncio
+        import anyio
 
-        return await asyncio.to_thread(self._client._data_source.fetch_df, path="/api/qdata/v1/stock/kline")
+        return await anyio.to_thread.run_sync(lambda: self._client._data_source.fetch_df(path="/api/qdata/v1/stock/kline"))
 
     async def get_kline_cs(
         self,
@@ -1178,12 +1310,16 @@ class AsyncStocks(AsyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if window_limit is not None:
             params["window_limit"] = window_limit
-        return await self._get("/api/qdata/v1/stock/kline_cs", cast_to=StockKlineCSResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stock/kline_cs",
+            cast_to=StockKlineCSResponse,
+            options={"params": params},
+        )
 
     async def get_market_summary(self) -> StockMarketSummaryResponse:
         """Retrieves valuation market summaries across different stock markets asynchronously."""
@@ -1191,7 +1327,10 @@ class AsyncStocks(AsyncAPIResource):
 
     async def get_sector_industry_summary(self) -> StockSectorIndustrySummaryResponse:
         """Retrieves industry/sector valuation comparison summaries asynchronously."""
-        return await self._get("/api/qdata/v1/stock/sector_industry_summary", cast_to=StockSectorIndustrySummaryResponse)
+        return await self._get(
+            "/api/qdata/v1/stock/sector_industry_summary",
+            cast_to=StockSectorIndustrySummaryResponse,
+        )
 
     async def get_kline_interval_stat(
         self,
@@ -1233,12 +1372,16 @@ class AsyncStocks(AsyncAPIResource):
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
-            params["start_time"] = start_time
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
         if end_time is not None:
-            params["end_time"] = end_time
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
         if window_limit is not None:
             params["window_limit"] = window_limit
-        return await self._get("/api/qdata/v1/stock/kline_interval_stat", cast_to=StockKlineIntervalStatResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stock/kline_interval_stat",
+            cast_to=StockKlineIntervalStatResponse,
+            options={"params": params},
+        )
 
     async def get_stocks_market_summary(
         self,
@@ -1303,7 +1446,11 @@ class AsyncStocks(AsyncAPIResource):
             params["start"] = start
         if end is not None:
             params["end"] = end
-        return await self._get("/api/qdata/v1/stocks/market-summary", cast_to=StocksMarketSummaryResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stocks/market-summary",
+            cast_to=StocksMarketSummaryResponse,
+            options={"params": params},
+        )
 
     async def get_event_remind(
         self,
@@ -1328,7 +1475,11 @@ class AsyncStocks(AsyncAPIResource):
             params["page"] = page
         if page_size is not None:
             params["page_size"] = page_size
-        return await self._get("/api/qdata/v1/stock/event_remind", cast_to=StockEventRemindResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stock/event_remind",
+            cast_to=StockEventRemindResponse,
+            options={"params": params},
+        )
 
     events = get_event_remind
 
@@ -1338,6 +1489,7 @@ class AsyncStocks(AsyncAPIResource):
         symbol: str,
         report_type: str | None = None,
         end_date: str | None = None,
+        public_date: str | None = None,
         limit: int | None = None,
     ) -> StockFinIndicatorsResponse:
         """Retrieves main financial indicators for a stock asynchronously.
@@ -1358,9 +1510,15 @@ class AsyncStocks(AsyncAPIResource):
             params["report_type"] = report_type
         if end_date is not None:
             params["end_date"] = end_date
+        if public_date is not None:
+            params["public_date"] = public_date
         if limit is not None:
             params["limit"] = limit
-        return await self._get("/api/qdata/v1/stock/fin_indicators", cast_to=StockFinIndicatorsResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stock/fin_indicators",
+            cast_to=StockFinIndicatorsResponse,
+            options={"params": params},
+        )
 
     fin_indicators = get_fin_indicators
 
@@ -1387,6 +1545,10 @@ class AsyncStocks(AsyncAPIResource):
             params["page"] = page
         if page_size is not None:
             params["page_size"] = page_size
-        return await self._get("/api/qdata/v1/stock/main_income", cast_to=StockMainIncomeResponse, options={"params": params})
+        return await self._get(
+            "/api/qdata/v1/stock/main_income",
+            cast_to=StockMainIncomeResponse,
+            options={"params": params},
+        )
 
     main_income = get_main_income
