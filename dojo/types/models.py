@@ -353,13 +353,18 @@ class StocksMarketSummaryResponse(DojoModel):
     data: List[StocksMarketSummaryItem]
 
 
-# --- Stocks (OpenAPI sync: event remind / financial indicators / main income) ---
+# --- Stocks (OpenAPI sync: events / financial calendar and statements) ---
 class StockEventRemindResponse(DojoModel):
     total_num: int | None = None
     data: List[Dict[str, Any]] | None = None
 
 
 class StockFinIndicatorsResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class StockFinCalendarResponse(DojoModel):
     total_num: int | None = None
     data: List[Dict[str, Any]] | None = None
 

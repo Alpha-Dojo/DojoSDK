@@ -22,6 +22,11 @@ KLINE_PAYLOAD = {
     ],
 }
 
+FIN_CALENDAR_PAYLOAD = {
+    "total_num": 1,
+    "data": [{"symbol": "AAPL", "item_type": 999, "event_time": "2026-08-25T00:00:00"}],
+}
+
 
 def _handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, json={"message": "", "code": 0, "data": KLINE_PAYLOAD})
@@ -89,3 +94,67 @@ async def test_async_benchmark_kline_preserves_online_data_contract(monkeypatch)
     assert response.total_num == 1
     assert response.data[0]["symbol"] == "AAPL"
     assert not hasattr(response, "klines")
+
+
+def test_sync_fin_calendar_preserves_response_contract(monkeypatch) -> None:
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    http_client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                200,
+                json={"message": "", "code": 0, "data": FIN_CALENDAR_PAYLOAD},
+            )
+        )
+    )
+    client = Dojo(api_key="test", return_raw_data=False, http_client=http_client)
+    try:
+        response = client.stocks.get_fin_calendar(item_type=1003)
+    finally:
+        http_client.close()
+
+    assert response.total_num == 1
+    assert response.data[0]["symbol"] == "AAPL"
+
+
+@pytest.mark.asyncio
+async def test_async_fin_calendar_sends_openapi_parameters(monkeypatch) -> None:
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, json={"message": "", "code": 0, "data": FIN_CALENDAR_PAYLOAD})
+
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    client = AsyncDojo(api_key="test", return_raw_data=False, http_client=http_client)
+    try:
+        response = await client.stocks.get_fin_calendar(
+            page=2,
+            size=50,
+            order_by="event_time",
+            order_type="asc",
+            fuzzy="Apple",
+            start_time="2026-08-25T08:00:00+08:00",
+            end_time="2026-08-31T23:59:59Z",
+            item_type=999,
+            market="us",
+            symbol="AAPL",
+        )
+    finally:
+        await http_client.aclose()
+
+    assert captured[0].url.path == "/api/qdata/v1/stock/fin_calendar"
+    assert dict(captured[0].url.params) == {
+        "page": "2",
+        "size": "50",
+        "order_by": "event_time",
+        "order_type": "asc",
+        "fuzzy": "Apple",
+        "start_time": "2026-08-25T08:00:00",
+        "end_time": "2026-08-31T23:59:59",
+        "item_type": "999",
+        "market": "us",
+        "symbol": "AAPL",
+    }
+    assert response.total_num == 1
+    assert response.data[0]["item_type"] == 999
