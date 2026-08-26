@@ -6,6 +6,7 @@ from pathlib import Path
 import httpx
 import pyarrow as pa
 import pytest
+from pydantic import ValidationError
 
 from dojo.client.async_client import AsyncDojo
 from dojo.client.sync import Dojo
@@ -21,12 +22,12 @@ TARGETS = (
     (
         "get_daily",
         "/api/qdata/v1/market/sectors/daily",
-        {"market": "cn", "limit": 20, "offset": 5},
+        {"market": "cn", "start_date": "2026-08-12", "limit": 20, "offset": 5},
     ),
     (
         "get_ticker_daily",
         "/api/qdata/v1/market/tickers/daily",
-        {"market": "cn", "limit": 20, "offset": 5},
+        {"market": "cn", "start_date": "2026-08-12", "limit": 20, "offset": 5},
     ),
     (
         "get_fundamentals_periods",
@@ -46,9 +47,39 @@ TARGETS = (
 )
 
 WRITE_TARGETS = (
-    ("create_constituents", "/api/qdata/v1/market/sectors/constituents"),
-    ("create_daily", "/api/qdata/v1/market/sectors/daily"),
-    ("create_ticker_daily", "/api/qdata/v1/market/tickers/daily"),
+    (
+        "create_constituents",
+        "/api/qdata/v1/market/sectors/constituents",
+        {"market": "cn", "level1_id": 1, "level2_id": 2, "level3_id": 3, "ticker": "000001.SZ", "role": "member"},
+    ),
+    (
+        "create_daily",
+        "/api/qdata/v1/market/sectors/daily",
+        {"trade_date": "2026-08-12", "market": "cn", "level1_id": 1, "level2_id": 2, "level3_id": 3},
+    ),
+    (
+        "create_ticker_daily",
+        "/api/qdata/v1/market/tickers/daily",
+        {"trade_date": "2026-08-12", "market": "cn", "ticker": "000001.SZ"},
+    ),
+)
+
+DELETE_TARGETS = (
+    (
+        "delete_constituents",
+        "/api/qdata/v1/market/sectors/constituents",
+        {"market": "cn", "level1_id": 1, "level2_id": 2, "level3_id": 3, "ticker": "000001.SZ", "role": "member"},
+    ),
+    (
+        "delete_daily",
+        "/api/qdata/v1/market/sectors/daily",
+        {"trade_date": "2026-08-12", "market": "cn", "level1_id": 1, "level2_id": 2, "level3_id": 3},
+    ),
+    (
+        "delete_ticker_daily",
+        "/api/qdata/v1/market/tickers/daily",
+        {"trade_date": "2026-08-12", "market": "cn", "ticker": "000001.SZ"},
+    ),
 )
 
 OPENAPI_TARGET_PATHS = {path for _method, path, _kwargs in TARGETS} | {
@@ -88,7 +119,10 @@ def test_offline_canonical_methods_use_registered_legacy_paths(monkeypatch, meth
     client = Dojo(http_client=http_client)
     client._data_source = FakeDataSource()
     try:
-        getattr(client.sectors, method)(market="cn", limit=10, offset=2)
+        kwargs = {"market": "cn", "limit": 10, "offset": 2}
+        if method != "get_constituents":
+            kwargs["start_date"] = "2026-08-12"
+        getattr(client.sectors, method)(**kwargs)
     finally:
         http_client.close()
     assert seen[0]["path"] == legacy_path
@@ -141,6 +175,10 @@ def test_sync_market_dataset_paths(monkeypatch, method: str, path: str, kwargs: 
     assert result["meta"]["total"] == 1
     assert seen[0].url.path == path
     assert seen[0].url.params["market"] == "cn"
+    if method == "get_daily":
+        assert set(seen[0].url.params) == {"market", "start_date", "limit", "offset"}
+    if method == "get_ticker_daily":
+        assert set(seen[0].url.params) == {"market", "start_date", "limit", "offset"}
 
 
 @pytest.mark.asyncio
@@ -163,9 +201,9 @@ async def test_async_market_dataset_paths(monkeypatch, method: str, path: str, k
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("method", "path"), WRITE_TARGETS)
+@pytest.mark.parametrize(("method", "path", "observation"), WRITE_TARGETS)
 @pytest.mark.parametrize(("replace", "http_method"), ((False, "POST"), (True, "PUT")))
-async def test_async_market_dataset_writes(monkeypatch, method: str, path: str, replace: bool, http_method: str) -> None:
+async def test_async_market_dataset_writes(monkeypatch, method: str, path: str, observation: dict, replace: bool, http_method: str) -> None:
     monkeypatch.setenv("DOJO_ONLINE", "true")
     seen = []
 
@@ -176,17 +214,17 @@ async def test_async_market_dataset_writes(monkeypatch, method: str, path: str, 
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = AsyncDojo(api_key="test", http_client=http_client)
     try:
-        result = await getattr(client.sectors, method)(observations=[{"market": "cn"}], replace=replace)
+        result = await getattr(client.sectors, method)(observations=[observation], replace=replace)
     finally:
         await http_client.aclose()
     assert result["data"] == {"inserted": 1}
     assert seen[0].method == http_method
     assert seen[0].url.path == path
-    assert json.loads(seen[0].content) == {"observations": [{"market": "cn"}]}
+    assert json.loads(seen[0].content) == {"observations": [observation]}
 
 
-@pytest.mark.parametrize(("method", "path"), WRITE_TARGETS)
-def test_sync_market_dataset_writes(monkeypatch, method: str, path: str) -> None:
+@pytest.mark.parametrize(("method", "path", "observation"), WRITE_TARGETS)
+def test_sync_market_dataset_writes(monkeypatch, method: str, path: str, observation: dict) -> None:
     monkeypatch.setenv("DOJO_ONLINE", "true")
     seen = []
 
@@ -197,12 +235,44 @@ def test_sync_market_dataset_writes(monkeypatch, method: str, path: str) -> None
     http_client = httpx.Client(transport=httpx.MockTransport(handler))
     client = Dojo(api_key="test", http_client=http_client)
     try:
-        result = getattr(client.sectors, method)(observations=[{"market": "cn"}])
+        result = getattr(client.sectors, method)(observations=[observation])
     finally:
         http_client.close()
     assert result["data"] == {"inserted": 1}
     assert seen[0].method == "POST"
     assert seen[0].url.path == path
+
+
+def test_market_dataset_write_models_reject_unknown_observation_fields(monkeypatch) -> None:
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    http_client = httpx.Client(transport=httpx.MockTransport(lambda _request: pytest.fail("request must not be sent")))
+    client = Dojo(api_key="test", http_client=http_client)
+    try:
+        with pytest.raises(ValidationError):
+            client.sectors.create_ticker_daily(observations=[{"trade_date": "2026-08-12", "market": "cn", "ticker": "000001.SZ", "level3_id": 3}])
+    finally:
+        http_client.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("method", "path", "identity"), DELETE_TARGETS)
+async def test_async_market_dataset_deletes(monkeypatch, method: str, path: str, identity: dict) -> None:
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    seen = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"meta": {}, "data": {"deleted": 1}})
+
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    client = AsyncDojo(api_key="test", http_client=http_client)
+    try:
+        await getattr(client.sectors, method)(**identity)
+    finally:
+        await http_client.aclose()
+    assert seen[0].method == "DELETE"
+    assert seen[0].url.path == path
+    assert json.loads(seen[0].content) == identity
 
 
 def test_sector_movers_path_and_contract(monkeypatch) -> None:
@@ -286,7 +356,7 @@ def test_typed_dataset_response_preserves_data_and_meta(monkeypatch) -> None:
         http_client=http_client,
     )
     try:
-        result = client.sectors.get_ticker_daily(market="us", ticker="AAPL")
+        result = client.sectors.get_ticker_daily(market="us", start_date="2026-08-12", ticker="AAPL")
     finally:
         http_client.close()
     assert result.meta == {"total": 1}

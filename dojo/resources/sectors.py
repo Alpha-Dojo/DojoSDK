@@ -19,8 +19,16 @@ from dojo.types.models import (
     SectorPrecomputedSectorAlphaFactorsDailyResponse,
     SectorPrecomputedTickerAlphaFactorsDailyResponse,
     SectorMoversResponse,
-    DatasetWriteRequest,
     DatasetWriteResponse,
+    ConstituentsQuery,
+    ConstituentWriteRequest,
+    ConstituentsDeleteRequest,
+    SectorDailyQuery,
+    SectorDailyWriteRequest,
+    SectorDailyDeleteRequest,
+    TickerDailyQuery,
+    TickerDailyWriteRequest,
+    TickerDailyDeleteRequest,
 )
 
 
@@ -65,21 +73,41 @@ def _daily_params(
     )
 
 
+def _query_params(model: Any) -> dict[str, Any]:
+    return model.model_dump(mode="json", exclude_none=True)
+
+
 class Sectors(SyncAPIResource):
 
-    def _write_market_dataset(self, path: str, observations: List[dict[str, Any]], *, replace: bool = False) -> DatasetWriteResponse:
-        body = DatasetWriteRequest(observations=observations).model_dump(mode="json")
+    def _write_market_dataset(self, path: str, request_model: Any, observations: List[dict[str, Any]], *, replace: bool = False) -> DatasetWriteResponse:
+        body = request_model(observations=observations).model_dump(mode="json", exclude_none=True)
         method = self._put if replace else self._post
         return method(path, cast_to=DatasetWriteResponse, options={"json": body})
 
     def create_constituents(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
-        return self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", observations, replace=replace)
+        return self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", ConstituentWriteRequest, observations, replace=replace)
 
     def create_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
-        return self._write_market_dataset("/api/qdata/v1/market/sectors/daily", observations, replace=replace)
+        return self._write_market_dataset("/api/qdata/v1/market/sectors/daily", SectorDailyWriteRequest, observations, replace=replace)
 
     def create_ticker_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
-        return self._write_market_dataset("/api/qdata/v1/market/tickers/daily", observations, replace=replace)
+        return self._write_market_dataset("/api/qdata/v1/market/tickers/daily", TickerDailyWriteRequest, observations, replace=replace)
+
+    def delete_constituents(self, *, market: str, level1_id: int, level2_id: int, level3_id: int, ticker: str, role: str) -> DatasetWriteResponse:
+        body = ConstituentsDeleteRequest(market=market, level1_id=level1_id, level2_id=level2_id, level3_id=level3_id, ticker=ticker, role=role).model_dump(
+            mode="json", exclude_none=True
+        )
+        return self._delete("/api/qdata/v1/market/sectors/constituents", cast_to=DatasetWriteResponse, options={"json": body})
+
+    def delete_daily(self, *, trade_date: str, market: str, level1_id: int, level2_id: int, level3_id: int, scope: str | None = None) -> DatasetWriteResponse:
+        body = SectorDailyDeleteRequest(trade_date=trade_date, market=market, level1_id=level1_id, level2_id=level2_id, level3_id=level3_id, scope=scope).model_dump(
+            mode="json", exclude_none=True
+        )
+        return self._delete("/api/qdata/v1/market/sectors/daily", cast_to=DatasetWriteResponse, options={"json": body})
+
+    def delete_ticker_daily(self, *, trade_date: str, market: str, ticker: str) -> DatasetWriteResponse:
+        body = TickerDailyDeleteRequest(trade_date=trade_date, market=market, ticker=ticker).model_dump(mode="json", exclude_none=True)
+        return self._delete("/api/qdata/v1/market/tickers/daily", cast_to=DatasetWriteResponse, options={"json": body})
 
     def get(self) -> SectorsResponse:
         """Retrieves list of all sectors.
@@ -296,15 +324,17 @@ class Sectors(SyncAPIResource):
             path,
             cast_to=SectorPrecomputedConstituentsResponse,
             options={
-                "params": _params(
-                    market=market,
-                    level1_id=level1_id,
-                    level2_id=level2_id,
-                    level3_id=level3_id,
-                    ticker=ticker,
-                    role=role,
-                    limit=limit,
-                    offset=offset,
+                "params": _query_params(
+                    ConstituentsQuery(
+                        market=market,
+                        level1_id=level1_id,
+                        level2_id=level2_id,
+                        level3_id=level3_id,
+                        ticker=ticker,
+                        role=role,
+                        limit=100 if limit is None else limit,
+                        offset=0 if offset is None else offset,
+                    )
                 )
             },
         )
@@ -313,15 +343,12 @@ class Sectors(SyncAPIResource):
         self,
         *,
         market: str,
-        start_date: str | None = None,
+        start_date: str,
         end_date: str | None = None,
         scope: str | None = None,
         level1_id: int | None = None,
         level2_id: int | None = None,
         level3_id: int | None = None,
-        ticker: str | None = None,
-        role: str | None = None,
-        benchmark_id: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> SectorPrecomputedDailyResponse:
@@ -330,19 +357,18 @@ class Sectors(SyncAPIResource):
             path,
             cast_to=SectorPrecomputedDailyResponse,
             options={
-                "params": _daily_params(
-                    market=market,
-                    start_date=start_date,
-                    end_date=end_date,
-                    scope=scope,
-                    level1_id=level1_id,
-                    level2_id=level2_id,
-                    level3_id=level3_id,
-                    ticker=ticker,
-                    role=role,
-                    benchmark_id=benchmark_id,
-                    limit=limit,
-                    offset=offset,
+                "params": _query_params(
+                    SectorDailyQuery(
+                        market=market,
+                        start_date=start_date,
+                        end_date=end_date,
+                        scope=scope,
+                        level1_id=level1_id,
+                        level2_id=level2_id,
+                        level3_id=level3_id,
+                        limit=1000 if limit is None else limit,
+                        offset=0 if offset is None else offset,
+                    )
                 )
             },
         )
@@ -351,15 +377,9 @@ class Sectors(SyncAPIResource):
         self,
         *,
         market: str,
-        start_date: str | None = None,
+        start_date: str,
         end_date: str | None = None,
-        scope: str | None = None,
-        level1_id: int | None = None,
-        level2_id: int | None = None,
-        level3_id: int | None = None,
         ticker: str | None = None,
-        role: str | None = None,
-        benchmark_id: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> SectorPrecomputedTickerDailyResponse:
@@ -368,19 +388,15 @@ class Sectors(SyncAPIResource):
             path,
             cast_to=SectorPrecomputedTickerDailyResponse,
             options={
-                "params": _daily_params(
-                    market=market,
-                    start_date=start_date,
-                    end_date=end_date,
-                    scope=scope,
-                    level1_id=level1_id,
-                    level2_id=level2_id,
-                    level3_id=level3_id,
-                    ticker=ticker,
-                    role=role,
-                    benchmark_id=benchmark_id,
-                    limit=limit,
-                    offset=offset,
+                "params": _query_params(
+                    TickerDailyQuery(
+                        market=market,
+                        start_date=start_date,
+                        end_date=end_date,
+                        ticker=ticker,
+                        limit=1000 if limit is None else limit,
+                        offset=0 if offset is None else offset,
+                    )
                 )
             },
         )
@@ -584,19 +600,35 @@ class Sectors(SyncAPIResource):
 
 class AsyncSectors(AsyncAPIResource):
 
-    async def _write_market_dataset(self, path: str, observations: List[dict[str, Any]], *, replace: bool = False) -> DatasetWriteResponse:
-        body = DatasetWriteRequest(observations=observations).model_dump(mode="json")
+    async def _write_market_dataset(self, path: str, request_model: Any, observations: List[dict[str, Any]], *, replace: bool = False) -> DatasetWriteResponse:
+        body = request_model(observations=observations).model_dump(mode="json", exclude_none=True)
         method = self._put if replace else self._post
         return await method(path, cast_to=DatasetWriteResponse, options={"json": body})
 
     async def create_constituents(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
-        return await self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", observations, replace=replace)
+        return await self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", ConstituentWriteRequest, observations, replace=replace)
 
     async def create_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
-        return await self._write_market_dataset("/api/qdata/v1/market/sectors/daily", observations, replace=replace)
+        return await self._write_market_dataset("/api/qdata/v1/market/sectors/daily", SectorDailyWriteRequest, observations, replace=replace)
 
     async def create_ticker_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
-        return await self._write_market_dataset("/api/qdata/v1/market/tickers/daily", observations, replace=replace)
+        return await self._write_market_dataset("/api/qdata/v1/market/tickers/daily", TickerDailyWriteRequest, observations, replace=replace)
+
+    async def delete_constituents(self, *, market: str, level1_id: int, level2_id: int, level3_id: int, ticker: str, role: str) -> DatasetWriteResponse:
+        body = ConstituentsDeleteRequest(market=market, level1_id=level1_id, level2_id=level2_id, level3_id=level3_id, ticker=ticker, role=role).model_dump(
+            mode="json", exclude_none=True
+        )
+        return await self._delete("/api/qdata/v1/market/sectors/constituents", cast_to=DatasetWriteResponse, options={"json": body})
+
+    async def delete_daily(self, *, trade_date: str, market: str, level1_id: int, level2_id: int, level3_id: int, scope: str | None = None) -> DatasetWriteResponse:
+        body = SectorDailyDeleteRequest(trade_date=trade_date, market=market, level1_id=level1_id, level2_id=level2_id, level3_id=level3_id, scope=scope).model_dump(
+            mode="json", exclude_none=True
+        )
+        return await self._delete("/api/qdata/v1/market/sectors/daily", cast_to=DatasetWriteResponse, options={"json": body})
+
+    async def delete_ticker_daily(self, *, trade_date: str, market: str, ticker: str) -> DatasetWriteResponse:
+        body = TickerDailyDeleteRequest(trade_date=trade_date, market=market, ticker=ticker).model_dump(mode="json", exclude_none=True)
+        return await self._delete("/api/qdata/v1/market/tickers/daily", cast_to=DatasetWriteResponse, options={"json": body})
 
     async def get(self) -> SectorsResponse:
         """Retrieves list of all sectors asynchronously.
@@ -815,15 +847,17 @@ class AsyncSectors(AsyncAPIResource):
             path,
             cast_to=SectorPrecomputedConstituentsResponse,
             options={
-                "params": _params(
-                    market=market,
-                    level1_id=level1_id,
-                    level2_id=level2_id,
-                    level3_id=level3_id,
-                    ticker=ticker,
-                    role=role,
-                    limit=limit,
-                    offset=offset,
+                "params": _query_params(
+                    ConstituentsQuery(
+                        market=market,
+                        level1_id=level1_id,
+                        level2_id=level2_id,
+                        level3_id=level3_id,
+                        ticker=ticker,
+                        role=role,
+                        limit=100 if limit is None else limit,
+                        offset=0 if offset is None else offset,
+                    )
                 )
             },
         )
@@ -832,15 +866,12 @@ class AsyncSectors(AsyncAPIResource):
         self,
         *,
         market: str,
-        start_date: str | None = None,
+        start_date: str,
         end_date: str | None = None,
         scope: str | None = None,
         level1_id: int | None = None,
         level2_id: int | None = None,
         level3_id: int | None = None,
-        ticker: str | None = None,
-        role: str | None = None,
-        benchmark_id: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> SectorPrecomputedDailyResponse:
@@ -849,19 +880,18 @@ class AsyncSectors(AsyncAPIResource):
             path,
             cast_to=SectorPrecomputedDailyResponse,
             options={
-                "params": _daily_params(
-                    market=market,
-                    start_date=start_date,
-                    end_date=end_date,
-                    scope=scope,
-                    level1_id=level1_id,
-                    level2_id=level2_id,
-                    level3_id=level3_id,
-                    ticker=ticker,
-                    role=role,
-                    benchmark_id=benchmark_id,
-                    limit=limit,
-                    offset=offset,
+                "params": _query_params(
+                    SectorDailyQuery(
+                        market=market,
+                        start_date=start_date,
+                        end_date=end_date,
+                        scope=scope,
+                        level1_id=level1_id,
+                        level2_id=level2_id,
+                        level3_id=level3_id,
+                        limit=1000 if limit is None else limit,
+                        offset=0 if offset is None else offset,
+                    )
                 )
             },
         )
@@ -870,15 +900,9 @@ class AsyncSectors(AsyncAPIResource):
         self,
         *,
         market: str,
-        start_date: str | None = None,
+        start_date: str,
         end_date: str | None = None,
-        scope: str | None = None,
-        level1_id: int | None = None,
-        level2_id: int | None = None,
-        level3_id: int | None = None,
         ticker: str | None = None,
-        role: str | None = None,
-        benchmark_id: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> SectorPrecomputedTickerDailyResponse:
@@ -887,19 +911,15 @@ class AsyncSectors(AsyncAPIResource):
             path,
             cast_to=SectorPrecomputedTickerDailyResponse,
             options={
-                "params": _daily_params(
-                    market=market,
-                    start_date=start_date,
-                    end_date=end_date,
-                    scope=scope,
-                    level1_id=level1_id,
-                    level2_id=level2_id,
-                    level3_id=level3_id,
-                    ticker=ticker,
-                    role=role,
-                    benchmark_id=benchmark_id,
-                    limit=limit,
-                    offset=offset,
+                "params": _query_params(
+                    TickerDailyQuery(
+                        market=market,
+                        start_date=start_date,
+                        end_date=end_date,
+                        ticker=ticker,
+                        limit=1000 if limit is None else limit,
+                        offset=0 if offset is None else offset,
+                    )
                 )
             },
         )
