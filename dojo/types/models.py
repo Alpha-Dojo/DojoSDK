@@ -412,6 +412,7 @@ class StrictDojoModel(DojoModel):
 
 
 class ConstituentsObservation(StrictDojoModel):
+    trade_date: date
     level1_id: int
     level2_id: int
     level3_id: int

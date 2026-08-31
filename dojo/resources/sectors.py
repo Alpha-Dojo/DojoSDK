@@ -84,8 +84,9 @@ class Sectors(SyncAPIResource):
         method = self._put if replace else self._post
         return method(path, cast_to=DatasetWriteResponse, options={"json": body})
 
-    def create_constituents(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
-        return self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", ConstituentWriteRequest, observations, replace=replace)
+    def create_constituents(self, *, trade_date: str, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
+        rows = [{**observation, "trade_date": trade_date} for observation in observations]
+        return self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", ConstituentWriteRequest, rows, replace=replace)
 
     def create_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
         return self._write_market_dataset("/api/qdata/v1/market/sectors/daily", SectorDailyWriteRequest, observations, replace=replace)
@@ -605,8 +606,9 @@ class AsyncSectors(AsyncAPIResource):
         method = self._put if replace else self._post
         return await method(path, cast_to=DatasetWriteResponse, options={"json": body})
 
-    async def create_constituents(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
-        return await self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", ConstituentWriteRequest, observations, replace=replace)
+    async def create_constituents(self, *, trade_date: str, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
+        rows = [{**observation, "trade_date": trade_date} for observation in observations]
+        return await self._write_market_dataset("/api/qdata/v1/market/sectors/constituents", ConstituentWriteRequest, rows, replace=replace)
 
     async def create_daily(self, *, observations: List[dict[str, Any]], replace: bool = False) -> DatasetWriteResponse:
         return await self._write_market_dataset("/api/qdata/v1/market/sectors/daily", SectorDailyWriteRequest, observations, replace=replace)

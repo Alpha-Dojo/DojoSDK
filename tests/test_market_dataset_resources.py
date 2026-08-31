@@ -214,13 +214,15 @@ async def test_async_market_dataset_writes(monkeypatch, method: str, path: str, 
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     client = AsyncDojo(api_key="test", http_client=http_client)
     try:
-        result = await getattr(client.sectors, method)(observations=[observation], replace=replace)
+        kwargs = {"trade_date": "2026-08-12"} if method == "create_constituents" else {}
+        result = await getattr(client.sectors, method)(observations=[observation], replace=replace, **kwargs)
     finally:
         await http_client.aclose()
     assert result["data"] == {"inserted": 1}
     assert seen[0].method == http_method
     assert seen[0].url.path == path
-    assert json.loads(seen[0].content) == {"observations": [observation]}
+    expected = {**observation, "trade_date": "2026-08-12"} if method == "create_constituents" else observation
+    assert json.loads(seen[0].content) == {"observations": [expected]}
 
 
 @pytest.mark.parametrize(("method", "path", "observation"), WRITE_TARGETS)
@@ -235,12 +237,37 @@ def test_sync_market_dataset_writes(monkeypatch, method: str, path: str, observa
     http_client = httpx.Client(transport=httpx.MockTransport(handler))
     client = Dojo(api_key="test", http_client=http_client)
     try:
-        result = getattr(client.sectors, method)(observations=[observation])
+        kwargs = {"trade_date": "2026-08-12"} if method == "create_constituents" else {}
+        result = getattr(client.sectors, method)(observations=[observation], **kwargs)
     finally:
         http_client.close()
     assert result["data"] == {"inserted": 1}
     assert seen[0].method == "POST"
     assert seen[0].url.path == path
+
+
+def test_constituent_write_uses_one_batch_trade_date(monkeypatch) -> None:
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"meta": {}, "data": {"inserted": 2}})
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    client = Dojo(api_key="test", http_client=http_client)
+    try:
+        client.sectors.create_constituents(
+            trade_date="2026-08-28",
+            observations=[
+                {**WRITE_TARGETS[0][2], "trade_date": "1999-01-01"},
+                {**WRITE_TARGETS[0][2], "ticker": "000002.SZ"},
+            ],
+        )
+    finally:
+        http_client.close()
+
+    assert {row["trade_date"] for row in json.loads(seen[0].content)["observations"]} == {"2026-08-28"}
 
 
 def test_market_dataset_write_models_reject_unknown_observation_fields(monkeypatch) -> None:
