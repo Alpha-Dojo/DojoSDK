@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Dict, List, Literal
 from pydantic import BaseModel, ConfigDict, Field
 from dojo._compat import PYDANTIC_V1
@@ -353,13 +354,18 @@ class StocksMarketSummaryResponse(DojoModel):
     data: List[StocksMarketSummaryItem]
 
 
-# --- Stocks (OpenAPI sync: event remind / financial indicators / main income) ---
+# --- Stocks (OpenAPI sync: events / financial calendar and statements) ---
 class StockEventRemindResponse(DojoModel):
     total_num: int | None = None
     data: List[Dict[str, Any]] | None = None
 
 
 class StockFinIndicatorsResponse(DojoModel):
+    total_num: int | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class StockFinCalendarResponse(DojoModel):
     total_num: int | None = None
     data: List[Dict[str, Any]] | None = None
 
@@ -394,6 +400,120 @@ class DatasetResponse(DojoModel):
 
 class DatasetWriteRequest(DojoModel):
     observations: List[Dict[str, Any]] = Field(min_length=1, max_length=10000)
+
+
+class StrictDojoModel(DojoModel):
+    if not PYDANTIC_V1:
+        model_config = ConfigDict(extra="forbid")
+    else:
+
+        class Config:
+            extra = "forbid"
+
+
+class ConstituentsObservation(StrictDojoModel):
+    trade_date: date
+    level1_id: int
+    level2_id: int
+    level3_id: int
+    market: str
+    ticker: str
+    role: str
+    market_cap: float | None = None
+    pe: float | None = None
+
+
+class ConstituentsQuery(StrictDojoModel):
+    market: str | None = None
+    level1_id: int | None = None
+    level2_id: int | None = None
+    level3_id: int | None = None
+    ticker: str | None = None
+    role: str | None = None
+    limit: int = Field(default=100, ge=1, le=500)
+    offset: int = Field(default=0, ge=0)
+
+
+class ConstituentWriteRequest(StrictDojoModel):
+    observations: List[ConstituentsObservation] = Field(min_length=1, max_length=10000)
+
+
+class ConstituentsDeleteRequest(StrictDojoModel):
+    market: str
+    level1_id: int
+    level2_id: int
+    level3_id: int
+    ticker: str
+    role: str
+
+
+class SectorDailyObservation(StrictDojoModel):
+    trade_date: date
+    market: str
+    level1_id: int
+    level2_id: int
+    level3_id: int
+    scope: str | None = None
+    member_count: int | None = None
+    member_count_with_return: int | None = None
+    total_market_cap: float | None = None
+    effective_weight_sum: float | None = None
+    weighted_pe: float | None = None
+    index_level: float | None = None
+    daily_return_pct: float | None = None
+
+
+class SectorDailyQuery(StrictDojoModel):
+    market: str = Field(min_length=2, max_length=8)
+    start_date: date
+    end_date: date | None = None
+    limit: int = Field(default=1000, ge=1, le=10000)
+    offset: int = Field(default=0, ge=0)
+    scope: str | None = None
+    level1_id: int | None = None
+    level2_id: int | None = None
+    level3_id: int | None = None
+
+
+class SectorDailyWriteRequest(StrictDojoModel):
+    observations: List[SectorDailyObservation] = Field(min_length=1, max_length=10000)
+
+
+class SectorDailyDeleteRequest(StrictDojoModel):
+    trade_date: date
+    market: str
+    level1_id: int
+    level2_id: int
+    level3_id: int
+    scope: str | None = None
+
+
+class TickerDailyObservation(StrictDojoModel):
+    market: str
+    ticker: str
+    trade_date: date
+    close: float | None = None
+    daily_return_pct: float | None = None
+    cumulative_return_pct: float | None = None
+
+
+class TickerDailyQuery(StrictDojoModel):
+    market: str = Field(min_length=2, max_length=8)
+    start_date: date
+    end_date: date | None = None
+    limit: int = Field(default=1000, ge=1, le=10000)
+    offset: int = Field(default=0, ge=0)
+    ticker: str | None = None
+
+
+class TickerDailyWriteRequest(StrictDojoModel):
+    observations: List[TickerDailyObservation] = Field(min_length=1, max_length=10000)
+
+
+class TickerDailyDeleteRequest(StrictDojoModel):
+    trade_date: date
+    market: str
+    ticker: str
 
 
 class DatasetWriteResponse(DojoModel):

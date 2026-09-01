@@ -42,6 +42,7 @@ async def test_stocks(client):
     await run_safe(client.stocks.get_stocks_market_summary(symbol="AAPL", limit=10))
     await run_safe(client.stocks.get_event_remind(symbol="AAPL"))
     await run_safe(client.stocks.get_fin_indicators(symbol="AAPL"))
+    await run_safe(client.stocks.get_fin_calendar(item_type=999, market="us", symbol="AAPL"))
     await run_safe(client.stocks.get_main_income(symbol="AAPL"))
 
 

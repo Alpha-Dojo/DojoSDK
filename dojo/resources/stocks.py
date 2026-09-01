@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List
+from typing import Any, List, Literal
 import pandas as pd
 from dojo.resources.base import AsyncAPIResource, SyncAPIResource, normalize_naive_iso_datetime
 from dojo.types.models import (
@@ -21,6 +21,7 @@ from dojo.types.models import (
     StocksMarketSummaryResponse,
     StockEventRemindResponse,
     StockFinIndicatorsResponse,
+    StockFinCalendarResponse,
     StockMainIncomeResponse,
 )
 
@@ -751,6 +752,46 @@ class Stocks(SyncAPIResource):
         )
 
     fin_indicators = get_fin_indicators
+
+    def get_fin_calendar(
+        self,
+        *,
+        page: int | None = None,
+        size: int | None = None,
+        order_by: str | None = None,
+        order_type: str | None = None,
+        fuzzy: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        item_type: Literal[999, 1002, 1003, 1004] | None = None,
+        market: str | None = None,
+        symbol: str | None = None,
+    ) -> StockFinCalendarResponse:
+        """Query the stock financial calendar."""
+        params: dict[str, Any] = {}
+        for name, value in (
+            ("page", page),
+            ("size", size),
+            ("order_by", order_by),
+            ("order_type", order_type),
+            ("fuzzy", fuzzy),
+            ("item_type", item_type),
+            ("market", market),
+            ("symbol", symbol),
+        ):
+            if value is not None:
+                params[name] = value
+        if start_time is not None:
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
+        if end_time is not None:
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
+        return self._get(
+            "/api/qdata/v1/stock/fin_calendar",
+            cast_to=StockFinCalendarResponse,
+            options={"params": params},
+        )
+
+    fin_calendar = get_fin_calendar
 
     def get_main_income(
         self,
@@ -1521,6 +1562,46 @@ class AsyncStocks(AsyncAPIResource):
         )
 
     fin_indicators = get_fin_indicators
+
+    async def get_fin_calendar(
+        self,
+        *,
+        page: int | None = None,
+        size: int | None = None,
+        order_by: str | None = None,
+        order_type: str | None = None,
+        fuzzy: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        item_type: Literal[999, 1002, 1003, 1004] | None = None,
+        market: str | None = None,
+        symbol: str | None = None,
+    ) -> StockFinCalendarResponse:
+        """Query the stock financial calendar asynchronously."""
+        params: dict[str, Any] = {}
+        for name, value in (
+            ("page", page),
+            ("size", size),
+            ("order_by", order_by),
+            ("order_type", order_type),
+            ("fuzzy", fuzzy),
+            ("item_type", item_type),
+            ("market", market),
+            ("symbol", symbol),
+        ):
+            if value is not None:
+                params[name] = value
+        if start_time is not None:
+            params["start_time"] = normalize_naive_iso_datetime(start_time)
+        if end_time is not None:
+            params["end_time"] = normalize_naive_iso_datetime(end_time)
+        return await self._get(
+            "/api/qdata/v1/stock/fin_calendar",
+            cast_to=StockFinCalendarResponse,
+            options={"params": params},
+        )
+
+    fin_calendar = get_fin_calendar
 
     async def get_main_income(
         self,
