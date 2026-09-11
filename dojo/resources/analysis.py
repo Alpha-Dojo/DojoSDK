@@ -9,6 +9,9 @@ from dojo.types.models import (
     AttributionFactorWriteRequest,
     AttributionFactorWriteResponse,
     MarketDynamicsCreateResponse,
+    MarketMacroEventDailyRequest,
+    MarketStructuredEventIngestResponse,
+    MarketStructuredEventListResponse,
     AttributionFactorResponse,
     SectorBriefExtractListResponse,
     SectorBriefExtractWriteRequest,
@@ -60,6 +63,62 @@ class Analysis(SyncAPIResource):
         )
 
     market_dynamics = get_market_dynamics
+
+    def get_market_structured_events(
+        self,
+        *,
+        id: int | None = None,
+        event_uid: str | None = None,
+        as_of_date: str | None = None,
+        lookback_hours: float | None = None,
+        market: str | None = None,
+        family: str | None = None,
+        kind_id: str | None = None,
+        tier: str | None = None,
+        event_time_from: str | None = None,
+        event_time_to: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> MarketStructuredEventListResponse:
+        """List structured market events."""
+        params = {
+            key: value
+            for key, value in {
+                "id": id,
+                "event_uid": event_uid,
+                "as_of_date": as_of_date,
+                "lookback_hours": lookback_hours,
+                "market": market,
+                "family": family,
+                "kind_id": kind_id,
+                "tier": tier,
+                "event_time_from": event_time_from,
+                "event_time_to": event_time_to,
+                "limit": limit,
+                "offset": offset,
+            }.items()
+            if value is not None
+        }
+        return self._get(
+            "/api/qdata/v1/analysis/market_structured_events",
+            cast_to=MarketStructuredEventListResponse,
+            options={"params": params},
+        )
+
+    market_structured_events = get_market_structured_events
+
+    def create_market_structured_events(
+        self,
+        *,
+        body: MarketMacroEventDailyRequest | dict[str, Any],
+    ) -> MarketStructuredEventIngestResponse:
+        """Ingest structured market events."""
+        request = body if isinstance(body, MarketMacroEventDailyRequest) else model_validate(MarketMacroEventDailyRequest, body)
+        return self._post(
+            "/api/qdata/v1/analysis/market_structured_events",
+            cast_to=MarketStructuredEventIngestResponse,
+            options={"json": model_dump(request, exclude_none=True)},
+        )
 
     def get_attribution_factor(
         self,
@@ -315,6 +374,62 @@ class AsyncAnalysis(AsyncAPIResource):
         )
 
     market_dynamics = get_market_dynamics
+
+    async def get_market_structured_events(
+        self,
+        *,
+        id: int | None = None,
+        event_uid: str | None = None,
+        as_of_date: str | None = None,
+        lookback_hours: float | None = None,
+        market: str | None = None,
+        family: str | None = None,
+        kind_id: str | None = None,
+        tier: str | None = None,
+        event_time_from: str | None = None,
+        event_time_to: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> MarketStructuredEventListResponse:
+        """List structured market events asynchronously."""
+        params = {
+            key: value
+            for key, value in {
+                "id": id,
+                "event_uid": event_uid,
+                "as_of_date": as_of_date,
+                "lookback_hours": lookback_hours,
+                "market": market,
+                "family": family,
+                "kind_id": kind_id,
+                "tier": tier,
+                "event_time_from": event_time_from,
+                "event_time_to": event_time_to,
+                "limit": limit,
+                "offset": offset,
+            }.items()
+            if value is not None
+        }
+        return await self._get(
+            "/api/qdata/v1/analysis/market_structured_events",
+            cast_to=MarketStructuredEventListResponse,
+            options={"params": params},
+        )
+
+    market_structured_events = get_market_structured_events
+
+    async def create_market_structured_events(
+        self,
+        *,
+        body: MarketMacroEventDailyRequest | dict[str, Any],
+    ) -> MarketStructuredEventIngestResponse:
+        """Ingest structured market events asynchronously."""
+        request = body if isinstance(body, MarketMacroEventDailyRequest) else model_validate(MarketMacroEventDailyRequest, body)
+        return await self._post(
+            "/api/qdata/v1/analysis/market_structured_events",
+            cast_to=MarketStructuredEventIngestResponse,
+            options={"json": model_dump(request, exclude_none=True)},
+        )
 
     async def get_attribution_factor(
         self,
