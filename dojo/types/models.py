@@ -733,6 +733,25 @@ MarketResearchResultListResponse = ResearchResultListResponse
 MarketResearchResultWriteResponse = ResearchResultWriteResponse
 
 
+class MarketStructuredEventListResponse(DojoModel):
+    total_num: int
+    data: List[Dict[str, Any]] | None = None
+
+
+class MarketMacroEventDailyRequest(DojoModel):
+    schema_version: str
+    task_name: str
+    as_of_date: str
+    lookback_hours: Any
+    coverage: Dict[str, Any]
+    events: List[Dict[str, Any]] = Field(max_length=1000)
+
+
+class MarketStructuredEventIngestResponse(DojoModel):
+    accepted_event_count: int
+    event_uids: List[str] | None = None
+
+
 class MarketDynamicsItem(DojoModel):
     market: Literal["us", "hk", "cn"]
     trading_date: str
