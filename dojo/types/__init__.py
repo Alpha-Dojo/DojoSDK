@@ -54,6 +54,9 @@ from dojo.types.models import (
     ForexCurrentQuoteResponse as ForexCurrentQuoteResponse,
     ForexKlineResponse as ForexKlineResponse,
     ForexSymbolListResponse as ForexSymbolListResponse,
+    MarketMacroEventDailyRequest as MarketMacroEventDailyRequest,
+    MarketStructuredEventIngestResponse as MarketStructuredEventIngestResponse,
+    MarketStructuredEventListResponse as MarketStructuredEventListResponse,
 )
 
 __all__ = [
@@ -112,4 +115,7 @@ __all__ = [
     "ForexCurrentQuoteResponse",
     "ForexKlineResponse",
     "ForexSymbolListResponse",
+    "MarketMacroEventDailyRequest",
+    "MarketStructuredEventIngestResponse",
+    "MarketStructuredEventListResponse",
 ]

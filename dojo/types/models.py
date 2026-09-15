@@ -589,6 +589,169 @@ class AnalysisTopicDiscoveriesResponse(DojoModel):
     data: List[Dict[str, Any]] | None = None
 
 
+class ResearchRequestModel(DojoModel):
+    if not PYDANTIC_V1:
+        model_config = ConfigDict(extra="forbid")
+    else:
+
+        class Config:
+            extra = "forbid"
+
+
+class ResearchObservationWindow(DojoModel):
+    start_date: str
+    end_date: str
+
+
+class ResearchTimelineItem(DojoModel):
+    event_uid: str
+    event_time: str
+    impact: Literal["strengthen", "weaken"]
+    title: str
+    summary: str
+    source_payload: Dict[str, Any] | None = None
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ResearchTimelineResponse(ResearchTimelineItem):
+    id: int
+    research_uid: str
+    position: int
+
+
+class ResearchResultSnapshotRequest(ResearchRequestModel):
+    research_uid: str | None = None
+    task_name: str
+    observation_window: ResearchObservationWindow
+    probability_tier: str | None = None
+    probability_pct: int | None = Field(default=None, ge=0, le=100)
+    outcome: str
+    timeline: List[ResearchTimelineItem] = Field(default_factory=list)
+    used_event_uids: List[str] = Field(default_factory=list)
+    generation_time: str
+    job_run_id: str
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ResearchCreateRequest(ResearchRequestModel):
+    research_uid: str
+    title: str
+    description: str
+    observation_window: ResearchObservationWindow
+    sector_id: int
+    status: Literal["tracking", "near_resolution"] = "tracking"
+    impact: Literal["medium", "high", "severe"]
+    visibility: Literal["private", "public"] = "private"
+    owner_user_id: str | None = None
+    timeline_source: Literal["producer", "manual"] = "producer"
+    extra: Dict[str, Any] = Field(default_factory=dict)
+    initial_result: ResearchResultSnapshotRequest | None = None
+
+
+class ResearchTimelineReplaceRequest(ResearchRequestModel):
+    items: List[ResearchTimelineItem] = Field(default_factory=list)
+
+
+class ResearchSectorResponse(DojoModel):
+    id: int
+    name: str
+    name_alias: str | None = None
+    description: str | None = None
+    description_alias: str | None = None
+    level: int
+    parent_id: int | None = None
+    sensitivity: str | None = None
+    properties: Any = None
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ResearchResultResponse(DojoModel):
+    result_id: int
+    research_uid: str
+    task_name: str
+    observation_window: ResearchObservationWindow
+    probability_tier: str | None = None
+    probability_pct: int | None = None
+    outcome: str
+    generation_time: str
+    job_run_id: str
+    producer_payload: Dict[str, Any] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ResearchCardResponse(DojoModel):
+    research_uid: str
+    title: str
+    description: str
+    observation_window: ResearchObservationWindow
+    sector_id: int
+    status: Literal["tracking", "near_resolution"]
+    impact: Literal["medium", "high", "severe"]
+    visibility: Literal["private", "public"]
+    owner_user_id: str
+    timeline_source: Literal["producer", "manual"]
+    extra: Dict[str, Any] = Field(default_factory=dict)
+    related_sector: ResearchSectorResponse | None = None
+    latest_result: ResearchResultResponse | None = None
+    latest_probability_tier: str | None = None
+    latest_probability_pct: int | None = None
+
+
+class ResearchAggregateResponse(ResearchCardResponse):
+    timeline: List[ResearchTimelineResponse] = Field(default_factory=list)
+
+
+class ResearchListResponse(DojoModel):
+    total_num: int
+    data: List[ResearchCardResponse] = Field(default_factory=list)
+
+
+class ResearchResultListResponse(DojoModel):
+    total_num: int
+    data: List[ResearchResultResponse] = Field(default_factory=list)
+
+
+class ResearchResultWriteResponse(DojoModel):
+    result_id: int
+
+
+# Explicit aliases keep the SDK model vocabulary aligned with the
+# market_research* resource names without introducing scenario/prediction
+# compatibility names on the wire.
+MarketResearchObservationWindow = ResearchObservationWindow
+MarketResearchTimelineItem = ResearchTimelineItem
+MarketResearchTimelineResponse = ResearchTimelineResponse
+MarketResearchResultSnapshotRequest = ResearchResultSnapshotRequest
+MarketResearchCreateRequest = ResearchCreateRequest
+MarketResearchTimelineReplaceRequest = ResearchTimelineReplaceRequest
+MarketResearchSectorResponse = ResearchSectorResponse
+MarketResearchResultResponse = ResearchResultResponse
+MarketResearchCardResponse = ResearchCardResponse
+MarketResearchAggregateResponse = ResearchAggregateResponse
+MarketResearchListResponse = ResearchListResponse
+MarketResearchResultListResponse = ResearchResultListResponse
+MarketResearchResultWriteResponse = ResearchResultWriteResponse
+
+
+class MarketStructuredEventListResponse(DojoModel):
+    total_num: int
+    data: List[Dict[str, Any]] | None = None
+
+
+class MarketMacroEventDailyRequest(DojoModel):
+    schema_version: str
+    task_name: str
+    as_of_date: str
+    lookback_hours: Any
+    coverage: Dict[str, Any]
+    events: List[Dict[str, Any]] = Field(max_length=1000)
+
+
+class MarketStructuredEventIngestResponse(DojoModel):
+    accepted_event_count: int
+    event_uids: List[str] | None = None
+
+
 class MarketDynamicsItem(DojoModel):
     market: Literal["us", "hk", "cn"]
     trading_date: str
