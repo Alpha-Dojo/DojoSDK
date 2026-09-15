@@ -34,6 +34,13 @@ class Analysis(SyncAPIResource):
         scope: str | None = None,
         sector_id: int | None = None,
         status: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        fuzzy: str | None = None,
+        order_by: str | None = None,
+        order_type: str | None = None,
+        page: int | None = None,
+        size: int | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> ResearchListResponse:
@@ -44,6 +51,13 @@ class Analysis(SyncAPIResource):
                 "scope": scope,
                 "sector_id": sector_id,
                 "status": status,
+                "start_time": start_time,
+                "end_time": end_time,
+                "fuzzy": fuzzy,
+                "order_by": order_by,
+                "order_type": order_type,
+                "page": page,
+                "size": size,
                 "limit": limit,
                 "offset": offset,
             }.items()
@@ -79,13 +93,30 @@ class Analysis(SyncAPIResource):
         self,
         research_uid: str,
         *,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        fuzzy: str | None = None,
+        order_by: str | None = None,
+        order_type: str | None = None,
+        page: int | None = None,
+        size: int | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> ResearchResultListResponse:
         """List append-only market research results, newest first."""
         params = {
             key: value
-            for key, value in {"limit": limit, "offset": offset}.items()
+            for key, value in {
+                "start_time": start_time,
+                "end_time": end_time,
+                "fuzzy": fuzzy,
+                "order_by": order_by,
+                "order_type": order_type,
+                "page": page,
+                "size": size,
+                "limit": limit,
+                "offset": offset,
+            }.items()
             if value is not None
         }
         return self._get(
@@ -441,6 +472,13 @@ class AsyncAnalysis(AsyncAPIResource):
         scope: str | None = None,
         sector_id: int | None = None,
         status: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        fuzzy: str | None = None,
+        order_by: str | None = None,
+        order_type: str | None = None,
+        page: int | None = None,
+        size: int | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> ResearchListResponse:
@@ -451,6 +489,13 @@ class AsyncAnalysis(AsyncAPIResource):
                 "scope": scope,
                 "sector_id": sector_id,
                 "status": status,
+                "start_time": start_time,
+                "end_time": end_time,
+                "fuzzy": fuzzy,
+                "order_by": order_by,
+                "order_type": order_type,
+                "page": page,
+                "size": size,
                 "limit": limit,
                 "offset": offset,
             }.items()
@@ -486,13 +531,30 @@ class AsyncAnalysis(AsyncAPIResource):
         self,
         research_uid: str,
         *,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        fuzzy: str | None = None,
+        order_by: str | None = None,
+        order_type: str | None = None,
+        page: int | None = None,
+        size: int | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> ResearchResultListResponse:
         """List append-only market research results, newest first asynchronously."""
         params = {
             key: value
-            for key, value in {"limit": limit, "offset": offset}.items()
+            for key, value in {
+                "start_time": start_time,
+                "end_time": end_time,
+                "fuzzy": fuzzy,
+                "order_by": order_by,
+                "order_type": order_type,
+                "page": page,
+                "size": size,
+                "limit": limit,
+                "offset": offset,
+            }.items()
             if value is not None
         }
         return await self._get(

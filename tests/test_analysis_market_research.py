@@ -30,6 +30,7 @@ ROOT_BODY = {
     "description": "Curated research metadata.",
     "observation_window": {"start_date": "2026-09-14", "end_date": "2026-09-28"},
     "sector_id": 42,
+    "status": "tracking",
     "impact": "high",
     "visibility": "public",
     "timeline_source": "producer",
@@ -39,7 +40,7 @@ ROOT_BODY = {
 
 def test_market_research_sync_routes_and_preserves_nullable_result_fields() -> None:
     client = Mock()
-    client.get.return_value = ResearchListResponse(total_num=0, data=[])
+    client.get.return_value = ResearchListResponse(page=1, size=10, total_num=0, total_page=0, num=0, data=[])
     client.post.return_value = ResearchResultWriteResponse(result_id=901)
 
     Analysis(client).list_market_research(scope="all", sector_id=42, status="tracking", limit=25, offset=5)
@@ -102,6 +103,7 @@ def test_market_research_sync_root_result_and_timeline_methods() -> None:
     client.get.assert_called_with(
         "/api/qdata/v1/analysis/research/research-energy-2026-001",
         cast_to=ResearchAggregateResponse,
+        options={},
     )
 
     analysis.list_market_research_results(ROOT_BODY["research_uid"], limit=10, offset=20)
@@ -131,6 +133,71 @@ def test_market_research_result_rejects_legacy_wire_fields() -> None:
     client.post.assert_not_called()
 
 
+def test_market_research_sync_list_forwards_query_contract() -> None:
+    client = Mock()
+    client.get.return_value = ResearchListResponse(page=2, size=3, total_num=4, total_page=2, num=1, data=[])
+
+    Analysis(client).list_market_research(
+        scope="public",
+        sector_id=42,
+        status="tracking",
+        start_time="2026-09-01",
+        end_time="2026-09-30",
+        fuzzy="resolve",
+        order_by="title",
+        order_type="asc",
+        page=2,
+        size=3,
+    )
+
+    client.get.assert_called_once_with(
+        "/api/qdata/v1/analysis/research",
+        cast_to=ResearchListResponse,
+        options={
+            "params": {
+                "scope": "public",
+                "sector_id": 42,
+                "status": "tracking",
+                "start_time": "2026-09-01",
+                "end_time": "2026-09-30",
+                "fuzzy": "resolve",
+                "order_by": "title",
+                "order_type": "asc",
+                "page": 2,
+                "size": 3,
+            }
+        },
+    )
+
+    client.reset_mock()
+    client.get.return_value = ResearchResultListResponse(page=1, size=5, total_num=0, total_page=0, num=0, data=[])
+    Analysis(client).list_market_research_results(
+        "research-energy-2026-001",
+        start_time="2026-09-01T00:00:00Z",
+        end_time="2026-09-30T00:00:00+00:00",
+        fuzzy="evidence",
+        order_by="task_name",
+        order_type="asc",
+        page=1,
+        size=5,
+    )
+    client.get.assert_called_once_with(
+        "/api/qdata/v1/analysis/research/research-energy-2026-001/results",
+        cast_to=ResearchResultListResponse,
+        options={
+            "params": {
+                "start_time": "2026-09-01T00:00:00Z",
+                "end_time": "2026-09-30T00:00:00+00:00",
+                "fuzzy": "evidence",
+                "order_by": "task_name",
+                "order_type": "asc",
+                "page": 1,
+                "size": 5,
+            }
+        },
+    )
+
+
 @pytest.mark.asyncio
 async def test_market_research_async_result_matches_sync_wire_contract() -> None:
     client = Mock()
@@ -152,7 +219,7 @@ async def test_market_research_async_result_matches_sync_wire_contract() -> None
 @pytest.mark.asyncio
 async def test_market_research_async_root_and_list_routes() -> None:
     client = Mock()
-    client.get = AsyncMock(return_value=ResearchListResponse(total_num=0, data=[]))
+    client.get = AsyncMock(return_value=ResearchListResponse(page=1, size=10, total_num=0, total_page=0, num=0, data=[]))
     client.post = AsyncMock(return_value=ResearchResultWriteResponse(result_id=901))
     client.put = AsyncMock()
 

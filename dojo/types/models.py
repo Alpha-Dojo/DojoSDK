@@ -702,12 +702,20 @@ class ResearchAggregateResponse(ResearchCardResponse):
 
 
 class ResearchListResponse(DojoModel):
+    page: int
+    size: int
     total_num: int
+    total_page: int
+    num: int
     data: List[ResearchCardResponse] = Field(default_factory=list)
 
 
 class ResearchResultListResponse(DojoModel):
+    page: int
+    size: int
     total_num: int
+    total_page: int
+    num: int
     data: List[ResearchResultResponse] = Field(default_factory=list)
 
 
