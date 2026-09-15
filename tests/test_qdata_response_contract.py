@@ -46,6 +46,55 @@ def test_sync_stock_kline_preserves_online_data_contract(monkeypatch) -> None:
     assert not hasattr(response, "klines")
 
 
+def test_sync_stock_kline_uses_qdata_endpoint_for_multiple_symbols(monkeypatch) -> None:
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, json={"message": "", "code": 0, "data": KLINE_PAYLOAD})
+
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    client = Dojo(api_key="test", return_raw_data=False, http_client=http_client)
+    try:
+        response = client.stocks.get_kline(symbol="AAPL,MSFT", kline_t="1D", limit=101)
+    finally:
+        http_client.close()
+
+    assert captured[0].url.path == "/api/qdata/v1/stock/kline"
+    assert dict(captured[0].url.params) == {
+        "symbol": "AAPL,MSFT",
+        "kline_t": "1D",
+        "limit": "101",
+    }
+    assert response.total_num == 1
+
+
+@pytest.mark.asyncio
+async def test_async_stock_kline_uses_qdata_endpoint_for_multiple_symbols(monkeypatch) -> None:
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, json={"message": "", "code": 0, "data": KLINE_PAYLOAD})
+
+    monkeypatch.setenv("DOJO_ONLINE", "true")
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    client = AsyncDojo(api_key="test", return_raw_data=False, http_client=http_client)
+    try:
+        response = await client.stocks.get_kline(symbol="AAPL,MSFT", kline_t="1D", limit=101)
+    finally:
+        await http_client.aclose()
+
+    assert captured[0].url.path == "/api/qdata/v1/stock/kline"
+    assert dict(captured[0].url.params) == {
+        "symbol": "AAPL,MSFT",
+        "kline_t": "1D",
+        "limit": "101",
+    }
+    assert response.total_num == 1
+
+
 def test_sync_stock_kline_online_and_offline_have_same_shape(monkeypatch) -> None:
     monkeypatch.setenv("DOJO_ONLINE", "true")
     http_client = httpx.Client(transport=httpx.MockTransport(_handler))

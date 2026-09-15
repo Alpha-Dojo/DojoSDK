@@ -438,12 +438,12 @@ class Stocks(SyncAPIResource):
         price_adj_date: str | None = None,
         limit: int | None = None,
     ) -> StockKlineResponse:
-        """Query single stock daily K-line time series with price adjustments.
+        """Query one or more stock daily K-line time series with price adjustments.
 
         Parameters
         ----------
         symbol : str
-            Target stock ticker.
+            Target stock ticker or comma-separated tickers (up to 100 symbols; for example, ``AAPL,MSFT``).
         kline_t : str, optional
             Bar interval duration.
         start_time : str, optional
@@ -455,7 +455,7 @@ class Stocks(SyncAPIResource):
         price_adj_date : str, optional
             Adjustment reference date.
         limit : int, optional
-            Max record limit.
+            Maximum records per symbol.
         """
         params: dict[str, Any] = {"symbol": symbol}
         if kline_t is not None:
@@ -1237,12 +1237,12 @@ class AsyncStocks(AsyncAPIResource):
         price_adj_date: str | None = None,
         limit: int | None = None,
     ) -> StockKlineResponse:
-        """Query single stock daily K-line time series with price adjustments asynchronously.
+        """Query one or more stock daily K-line time series with price adjustments asynchronously.
 
         Parameters
         ----------
         symbol : str
-            Target stock ticker.
+            Target stock ticker or comma-separated tickers (up to 100 symbols; for example, ``AAPL,MSFT``).
         kline_t : str, optional
             Bar interval duration.
         start_time : str, optional
@@ -1254,7 +1254,7 @@ class AsyncStocks(AsyncAPIResource):
         price_adj_date : str, optional
             Adjustment reference date.
         limit : int, optional
-            Max record limit.
+            Maximum records per symbol.
         """
         params: dict[str, Any] = {"symbol": symbol}
         if kline_t is not None:
