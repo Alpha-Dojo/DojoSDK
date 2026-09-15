@@ -188,7 +188,6 @@ class Sectors(SyncAPIResource):
         level: int | None = None,
         parent_id: int | None = None,
         sensitivity: str | None = None,
-        version: str | None = None,
         tree: bool | None = None,
     ) -> SectorInfoListResponse:
         """Retrieves detailed sector taxonomy information.
@@ -207,8 +206,6 @@ class Sectors(SyncAPIResource):
             Parent sector ID.
         sensitivity : str, optional
             Sector sensitivity.
-        version : str, optional
-            Sector metadata version.
         tree : bool, optional
             Whether to return in tree format (default: False).
         """
@@ -225,8 +222,6 @@ class Sectors(SyncAPIResource):
             params["parent_id"] = parent_id
         if sensitivity is not None:
             params["sensitivity"] = sensitivity
-        if version is not None:
-            params["version"] = version
         if tree is not None:
             params["tree"] = tree
         return self._get(
@@ -715,7 +710,6 @@ class AsyncSectors(AsyncAPIResource):
         level: int | None = None,
         parent_id: int | None = None,
         sensitivity: str | None = None,
-        version: str | None = None,
         tree: bool | None = None,
     ) -> SectorInfoListResponse:
         """Retrieves detailed sector taxonomy information asynchronously.
@@ -734,8 +728,6 @@ class AsyncSectors(AsyncAPIResource):
             Parent sector ID.
         sensitivity : str, optional
             Sector sensitivity.
-        version : str, optional
-            Sector metadata version.
         tree : bool, optional
             Whether to return in tree format (default: False).
         """
@@ -752,8 +744,6 @@ class AsyncSectors(AsyncAPIResource):
             params["parent_id"] = parent_id
         if sensitivity is not None:
             params["sensitivity"] = sensitivity
-        if version is not None:
-            params["version"] = version
         if tree is not None:
             params["tree"] = tree
         return await self._get(
