@@ -13,10 +13,113 @@ from dojo.types.models import (
     SectorBriefExtractListResponse,
     SectorBriefExtractWriteRequest,
     SectorBriefExtractWriteResponse,
+    ResearchAggregateResponse,
+    ResearchCreateRequest,
+    ResearchListResponse,
+    ResearchResultListResponse,
+    ResearchResultSnapshotRequest,
+    ResearchResultWriteResponse,
+    ResearchTimelineReplaceRequest,
 )
 
 
 class Analysis(SyncAPIResource):
+
+    def list_market_research(
+        self,
+        *,
+        scope: str | None = None,
+        sector_id: int | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> ResearchListResponse:
+        """List market research roots visible to the authenticated caller."""
+        params = {
+            key: value
+            for key, value in {
+                "scope": scope,
+                "sector_id": sector_id,
+                "status": status,
+                "limit": limit,
+                "offset": offset,
+            }.items()
+            if value is not None
+        }
+        return self._get(
+            "/api/qdata/v1/analysis/research",
+            cast_to=ResearchListResponse,
+            options={"params": params},
+        )
+
+    def create_market_research(
+        self,
+        *,
+        body: ResearchCreateRequest | dict[str, Any],
+    ) -> ResearchAggregateResponse:
+        """Create one market research root, optionally bootstrapping its first result."""
+        request = body if isinstance(body, ResearchCreateRequest) else model_validate(ResearchCreateRequest, body)
+        return self._post(
+            "/api/qdata/v1/analysis/research",
+            cast_to=ResearchAggregateResponse,
+            options={"json": model_dump(request, exclude_none=False)},
+        )
+
+    def get_market_research(self, research_uid: str) -> ResearchAggregateResponse:
+        """Get one market research root with its latest result and effective timeline."""
+        return self._get(
+            f"/api/qdata/v1/analysis/research/{research_uid}",
+            cast_to=ResearchAggregateResponse,
+        )
+
+    def list_market_research_results(
+        self,
+        research_uid: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> ResearchResultListResponse:
+        """List append-only market research results, newest first."""
+        params = {
+            key: value
+            for key, value in {"limit": limit, "offset": offset}.items()
+            if value is not None
+        }
+        return self._get(
+            f"/api/qdata/v1/analysis/research/{research_uid}/results",
+            cast_to=ResearchResultListResponse,
+            options={"params": params},
+        )
+
+    def create_market_research_result(
+        self,
+        research_uid: str,
+        *,
+        body: ResearchResultSnapshotRequest | dict[str, Any],
+    ) -> ResearchResultWriteResponse:
+        """Append one complete market research result for a job run."""
+        request = body if isinstance(body, ResearchResultSnapshotRequest) else model_validate(ResearchResultSnapshotRequest, body)
+        return self._post(
+            f"/api/qdata/v1/analysis/research/{research_uid}/results",
+            cast_to=ResearchResultWriteResponse,
+            # Explicit nulls are part of the producer contract and must be
+            # retained in the server's producer_payload.
+            options={"json": model_dump(request, exclude_none=False)},
+        )
+
+    def replace_market_research_timeline(
+        self,
+        research_uid: str,
+        *,
+        body: ResearchTimelineReplaceRequest | dict[str, Any],
+    ) -> ResearchAggregateResponse:
+        """Replace the effective timeline and select manual timeline ownership."""
+        request = body if isinstance(body, ResearchTimelineReplaceRequest) else model_validate(ResearchTimelineReplaceRequest, body)
+        return self._put(
+            f"/api/qdata/v1/analysis/research/{research_uid}/timeline",
+            cast_to=ResearchAggregateResponse,
+            options={"json": model_dump(request, exclude_none=False)},
+        )
 
     def get_market_dynamics(
         self,
@@ -272,6 +375,100 @@ class Analysis(SyncAPIResource):
 
 
 class AsyncAnalysis(AsyncAPIResource):
+
+    async def list_market_research(
+        self,
+        *,
+        scope: str | None = None,
+        sector_id: int | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> ResearchListResponse:
+        """List market research roots visible to the authenticated caller asynchronously."""
+        params = {
+            key: value
+            for key, value in {
+                "scope": scope,
+                "sector_id": sector_id,
+                "status": status,
+                "limit": limit,
+                "offset": offset,
+            }.items()
+            if value is not None
+        }
+        return await self._get(
+            "/api/qdata/v1/analysis/research",
+            cast_to=ResearchListResponse,
+            options={"params": params},
+        )
+
+    async def create_market_research(
+        self,
+        *,
+        body: ResearchCreateRequest | dict[str, Any],
+    ) -> ResearchAggregateResponse:
+        """Create one market research root, optionally bootstrapping its first result asynchronously."""
+        request = body if isinstance(body, ResearchCreateRequest) else model_validate(ResearchCreateRequest, body)
+        return await self._post(
+            "/api/qdata/v1/analysis/research",
+            cast_to=ResearchAggregateResponse,
+            options={"json": model_dump(request, exclude_none=False)},
+        )
+
+    async def get_market_research(self, research_uid: str) -> ResearchAggregateResponse:
+        """Get one market research root with its latest result and effective timeline asynchronously."""
+        return await self._get(
+            f"/api/qdata/v1/analysis/research/{research_uid}",
+            cast_to=ResearchAggregateResponse,
+        )
+
+    async def list_market_research_results(
+        self,
+        research_uid: str,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> ResearchResultListResponse:
+        """List append-only market research results, newest first asynchronously."""
+        params = {
+            key: value
+            for key, value in {"limit": limit, "offset": offset}.items()
+            if value is not None
+        }
+        return await self._get(
+            f"/api/qdata/v1/analysis/research/{research_uid}/results",
+            cast_to=ResearchResultListResponse,
+            options={"params": params},
+        )
+
+    async def create_market_research_result(
+        self,
+        research_uid: str,
+        *,
+        body: ResearchResultSnapshotRequest | dict[str, Any],
+    ) -> ResearchResultWriteResponse:
+        """Append one complete market research result for a job run asynchronously."""
+        request = body if isinstance(body, ResearchResultSnapshotRequest) else model_validate(ResearchResultSnapshotRequest, body)
+        return await self._post(
+            f"/api/qdata/v1/analysis/research/{research_uid}/results",
+            cast_to=ResearchResultWriteResponse,
+            options={"json": model_dump(request, exclude_none=False)},
+        )
+
+    async def replace_market_research_timeline(
+        self,
+        research_uid: str,
+        *,
+        body: ResearchTimelineReplaceRequest | dict[str, Any],
+    ) -> ResearchAggregateResponse:
+        """Replace the effective timeline and select manual timeline ownership asynchronously."""
+        request = body if isinstance(body, ResearchTimelineReplaceRequest) else model_validate(ResearchTimelineReplaceRequest, body)
+        return await self._put(
+            f"/api/qdata/v1/analysis/research/{research_uid}/timeline",
+            cast_to=ResearchAggregateResponse,
+            options={"json": model_dump(request, exclude_none=False)},
+        )
 
     async def get_market_dynamics(
         self,
