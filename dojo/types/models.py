@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field
 from dojo._compat import PYDANTIC_V1
 
@@ -303,8 +303,8 @@ class YStockInfoResponse(DojoModel):
 
 
 class StockKlineResponseItem(DojoModel):
-    symbol: str
-    kline_t: str
+    symbol: str | None = None
+    kline_t: str | None = None
     bar_time: str
     open: float | None = None
     high: float | None = None
@@ -321,7 +321,7 @@ class StockKlineResponseItem(DojoModel):
 
 class StockKlineResponse(DojoModel):
     total_num: int
-    data: List[StockKlineResponseItem]
+    data: Union[List[StockKlineResponseItem], Dict[str, List[StockKlineResponseItem]]]
 
 
 class StockKlineCSResponse(DojoModel):

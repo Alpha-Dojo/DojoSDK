@@ -881,10 +881,21 @@ class HuggingFaceKlineDataSource(StockDataSource):
 
         df = self.fetch_df(path=path)
         symbol = merged.get(spec.symbol_param)
+        is_multi_symbol = False
+        requested_symbols: list[str] = []
         if symbol is not None:
-            symbols = symbol.split(",") if isinstance(symbol, str) and "," in symbol else symbol
-            if isinstance(symbols, (list, tuple, set)):
-                symbols = list(dict.fromkeys(symbols))
+            if isinstance(symbol, (list, tuple, set)):
+                symbols = list(dict.fromkeys(symbol))
+                requested_symbols = [str(s) for s in symbols]
+                is_multi_symbol = len(symbols) > 1
+            elif isinstance(symbol, str) and "," in symbol:
+                symbols = [s.strip() for s in symbol.split(",") if s.strip()]
+                requested_symbols = symbols
+                is_multi_symbol = True
+            else:
+                symbols = symbol
+                requested_symbols = [str(symbol)]
+
             if df.index.name in {spec.symbol_field, f"index_{spec.symbol_field}"}:
                 if isinstance(symbols, list):
                     available = [value for value in symbols if value in df.index]
@@ -915,6 +926,44 @@ class HuggingFaceKlineDataSource(StockDataSource):
                 df = df[df[spec.time_field].le(merged[spec.end_param])]
             df = df.sort_values(spec.time_field, ascending=not spec.order_desc)
 
+        import datetime
+
+        if is_multi_symbol:
+            sym_col = spec.symbol_field if spec.symbol_field in df.columns else "symbol"
+            grouped_data: dict[str, list[dict]] = {}
+            for sym in requested_symbols:
+                if df.index.name in {spec.symbol_field, f"index_{spec.symbol_field}"}:
+                    sym_df = df.loc[[sym]] if sym in df.index else df.iloc[:0]
+                elif sym_col in df.columns:
+                    sym_df = df[df[sym_col].eq(sym)]
+                else:
+                    sym_df = df.iloc[:0]
+
+                offset = merged.get(spec.offset_param)
+                if isinstance(offset, int) and offset > 0:
+                    sym_df = sym_df.iloc[offset:]
+                limit = merged.get(spec.limit_param)
+                if isinstance(limit, int) and limit > 0:
+                    sym_df = sym_df.iloc[:limit]
+
+                if spec.fields_param and merged.get(spec.fields_param):
+                    fields = [field for field in merged[spec.fields_param] if field in sym_df.columns]
+                    sym_df = sym_df[fields]
+
+                sym_rows = sym_df.to_dict(orient="records")
+                for row in sym_rows:
+                    row.pop(sym_col, None)
+                    row.pop(f"index_{sym_col}", None)
+                    for key, value in row.items():
+                        if isinstance(value, (datetime.datetime, datetime.date)):
+                            row[key] = value.isoformat()
+                        elif pd.isna(value):
+                            row[key] = None
+                grouped_data[sym] = sym_rows
+
+            data: Any = {"total_num": len(grouped_data), "data": grouped_data}
+            return {"code": 0, "message": "ok", "data": data}
+
         index = merged.get("index")
         if isinstance(index, int) and not isinstance(index, bool):
             df = df.iloc[[index]] if -len(df) <= index < len(df) else df.iloc[:0]
@@ -929,8 +978,6 @@ class HuggingFaceKlineDataSource(StockDataSource):
         if spec.fields_param and merged.get(spec.fields_param):
             fields = [field for field in merged[spec.fields_param] if field in df.columns]
             df = df[fields]
-
-        import datetime
 
         rows = df.to_dict(orient="records")
         for row in rows:

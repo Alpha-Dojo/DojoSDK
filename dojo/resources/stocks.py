@@ -430,7 +430,7 @@ class Stocks(SyncAPIResource):
     def get_kline(
         self,
         *,
-        symbol: str,
+        symbol: str | List[str],
         kline_t: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
@@ -442,8 +442,8 @@ class Stocks(SyncAPIResource):
 
         Parameters
         ----------
-        symbol : str
-            Target stock ticker or comma-separated tickers (up to 100 symbols; for example, ``AAPL,MSFT``).
+        symbol : str or list of str
+            Target stock ticker, list of tickers, or comma-separated tickers (up to 100 symbols; for example, ``AAPL,MSFT`` or ``["AAPL", "MSFT"]``).
         kline_t : str, optional
             Bar interval duration.
         start_time : str, optional
@@ -457,7 +457,8 @@ class Stocks(SyncAPIResource):
         limit : int, optional
             Maximum records per symbol.
         """
-        params: dict[str, Any] = {"symbol": symbol}
+        symbol_val = ",".join(symbol) if isinstance(symbol, (list, tuple, set)) else symbol
+        params: dict[str, Any] = {"symbol": symbol_val}
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
@@ -492,6 +493,8 @@ class Stocks(SyncAPIResource):
         raw_response = self._client._data_source.fetch(method="GET", path="/api/qdata/v1/stock/kline", params=params)["data"]
         response = StockKlineResponse.model_validate(raw_response)
 
+        if isinstance(response.data, dict):
+            return [item for items in response.data.values() for item in items]
         return response.data
 
     def get_all_klines_with_df(self) -> "pd.DataFrame":  # type: ignore
@@ -1229,7 +1232,7 @@ class AsyncStocks(AsyncAPIResource):
     async def get_kline(
         self,
         *,
-        symbol: str,
+        symbol: str | List[str],
         kline_t: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
@@ -1241,8 +1244,8 @@ class AsyncStocks(AsyncAPIResource):
 
         Parameters
         ----------
-        symbol : str
-            Target stock ticker or comma-separated tickers (up to 100 symbols; for example, ``AAPL,MSFT``).
+        symbol : str or list of str
+            Target stock ticker, list of tickers, or comma-separated tickers (up to 100 symbols; for example, ``AAPL,MSFT`` or ``["AAPL", "MSFT"]``).
         kline_t : str, optional
             Bar interval duration.
         start_time : str, optional
@@ -1256,7 +1259,8 @@ class AsyncStocks(AsyncAPIResource):
         limit : int, optional
             Maximum records per symbol.
         """
-        params: dict[str, Any] = {"symbol": symbol}
+        symbol_val = ",".join(symbol) if isinstance(symbol, (list, tuple, set)) else symbol
+        params: dict[str, Any] = {"symbol": symbol_val}
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
