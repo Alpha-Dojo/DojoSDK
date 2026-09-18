@@ -720,7 +720,7 @@ class Stocks(SyncAPIResource):
     def get_fin_indicators(
         self,
         *,
-        symbol: str,
+        symbol: str | List[str] | None = None,
         report_type: str | None = None,
         end_date: str | None = None,
         public_date: str | None = None,
@@ -730,16 +730,21 @@ class Stocks(SyncAPIResource):
 
         Parameters
         ----------
-        symbol : str
-            Target stock ticker symbol.
+        symbol : str or list of str, optional
+            Target stock ticker symbol, list of tickers, or comma-separated tickers.
         report_type : str, optional
             Financial report type filter.
         end_date : str, optional
             ISO-8601 end date.
+        public_date : str, optional
+            Announcement release date filter.
         limit : int, optional
             Max records.
         """
-        params: dict[str, Any] = {"symbol": symbol}
+        params: dict[str, Any] = {}
+        if symbol is not None:
+            symbol_val = ",".join(symbol) if isinstance(symbol, (list, tuple, set)) else symbol
+            params["symbol"] = symbol_val
         if report_type is not None:
             params["report_type"] = report_type
         if end_date is not None:
@@ -1531,7 +1536,7 @@ class AsyncStocks(AsyncAPIResource):
     async def get_fin_indicators(
         self,
         *,
-        symbol: str,
+        symbol: str | List[str] | None = None,
         report_type: str | None = None,
         end_date: str | None = None,
         public_date: str | None = None,
@@ -1541,16 +1546,21 @@ class AsyncStocks(AsyncAPIResource):
 
         Parameters
         ----------
-        symbol : str
-            Target stock ticker symbol.
+        symbol : str or list of str, optional
+            Target stock ticker symbol, list of tickers, or comma-separated tickers.
         report_type : str, optional
             Financial report type filter.
         end_date : str, optional
             ISO-8601 end date.
+        public_date : str, optional
+            Announcement release date filter.
         limit : int, optional
             Max records.
         """
-        params: dict[str, Any] = {"symbol": symbol}
+        params: dict[str, Any] = {}
+        if symbol is not None:
+            symbol_val = ",".join(symbol) if isinstance(symbol, (list, tuple, set)) else symbol
+            params["symbol"] = symbol_val
         if report_type is not None:
             params["report_type"] = report_type
         if end_date is not None:

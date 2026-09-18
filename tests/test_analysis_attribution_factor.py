@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from dojo.resources.analysis import Analysis, AsyncAnalysis
-from dojo.types.models import AttributionFactorWriteResponse
+from dojo.types.models import AttributionFactorResponse, AttributionFactorWriteResponse
 
 BODY = {
     "generation_time": "2026-08-11T01:45:00Z",
@@ -21,6 +21,37 @@ BODY = {
         }
     ],
 }
+
+
+def test_get_attribution_factor_sends_pagination() -> None:
+    client = Mock()
+    expected = AttributionFactorResponse(page=2, size=200, total_num=201, total_page=2, num=1, data=[])
+    client.get.return_value = expected
+
+    result = Analysis(client).get_attribution_factor(page=2, size=200, market="cn")
+
+    assert result is expected
+    client.get.assert_called_once_with(
+        "/api/qdata/v1/analysis/attribution_factor",
+        cast_to=AttributionFactorResponse,
+        options={"params": {"page": 2, "size": 200, "market": "cn"}},
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_attribution_factor_async_sends_pagination() -> None:
+    client = Mock()
+    expected = AttributionFactorResponse(page=2, size=200, total_num=201, total_page=2, num=1, data=[])
+    client.get = AsyncMock(return_value=expected)
+
+    result = await AsyncAnalysis(client).get_attribution_factor(page=2, size=200, market="cn")
+
+    assert result is expected
+    client.get.assert_awaited_once_with(
+        "/api/qdata/v1/analysis/attribution_factor",
+        cast_to=AttributionFactorResponse,
+        options={"params": {"page": 2, "size": 200, "market": "cn"}},
+    )
 
 
 def test_create_attribution_factor() -> None:

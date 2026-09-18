@@ -54,6 +54,7 @@ HF_REGISTRY: dict[str, HFEndpointSpec] = {
         repo_id="AlphaDojo/dojo_benchmark_kline",
         path_template="data.parquet",
         companion_files=("benchmark.parquet",),
+        time_field="bar_time",
         symbol_field="symbol",
         json_columns=[],
         envelope="list",

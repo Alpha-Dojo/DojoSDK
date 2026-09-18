@@ -34,10 +34,10 @@ def test_kline_fetch_filters_cached_dataframe_without_parent_fetch() -> None:
         "message": "ok",
         "data": {
             "total_num": 2,
-            "data": [
-                {"symbol": "AAPL", "kline_t": "1D", "bar_time": "2024-01-01T00:00:00", "close": 10.0},
-                {"symbol": "MSFT", "kline_t": "1D", "bar_time": "2024-01-01T00:00:00", "close": 20.0},
-            ],
+            "data": {
+                "AAPL": [{"kline_t": "1D", "bar_time": "2024-01-01T00:00:00", "close": 10.0}],
+                "MSFT": [{"kline_t": "1D", "bar_time": "2024-01-01T00:00:00", "close": 20.0}],
+            },
         },
     }
 

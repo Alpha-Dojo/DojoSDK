@@ -77,7 +77,7 @@ class Benchmark(SyncAPIResource):
     def get_kline(
         self,
         *,
-        symbol: str,
+        symbol: str | List[str],
         kline_t: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
@@ -89,8 +89,8 @@ class Benchmark(SyncAPIResource):
 
         Parameters
         ----------
-        symbol : str
-            The benchmark symbol (e.g. S&P500 index key).
+        symbol : str or list of str
+            The benchmark symbol, list of symbols, or comma-separated symbols (e.g. ``000001.SS,^SPX`` or ``["000001.SS", "^SPX"]``).
         kline_t : str, optional
             Kline interval size (e.g. 1m, 1h, 1d).
         start_time : str, optional
@@ -104,7 +104,8 @@ class Benchmark(SyncAPIResource):
         limit : int, optional
             Max number of kline data points to return.
         """
-        params: dict[str, Any] = {"symbol": symbol}
+        symbol_val = ",".join(symbol) if isinstance(symbol, (list, tuple, set)) else symbol
+        params: dict[str, Any] = {"symbol": symbol_val}
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:
@@ -243,7 +244,7 @@ class AsyncBenchmark(AsyncAPIResource):
     async def get_kline(
         self,
         *,
-        symbol: str,
+        symbol: str | List[str],
         kline_t: str | None = None,
         start_time: str | None = None,
         end_time: str | None = None,
@@ -255,8 +256,8 @@ class AsyncBenchmark(AsyncAPIResource):
 
         Parameters
         ----------
-        symbol : str
-            The benchmark symbol (e.g. S&P500 index key).
+        symbol : str or list of str
+            The benchmark symbol, list of symbols, or comma-separated symbols (e.g. ``000001.SS,^SPX`` or ``["000001.SS", "^SPX"]``).
         kline_t : str, optional
             Kline interval size (e.g. 1m, 1h, 1d).
         start_time : str, optional
@@ -270,7 +271,8 @@ class AsyncBenchmark(AsyncAPIResource):
         limit : int, optional
             Max number of kline data points to return.
         """
-        params: dict[str, Any] = {"symbol": symbol}
+        symbol_val = ",".join(symbol) if isinstance(symbol, (list, tuple, set)) else symbol
+        params: dict[str, Any] = {"symbol": symbol_val}
         if kline_t is not None:
             params["kline_t"] = kline_t
         if start_time is not None:

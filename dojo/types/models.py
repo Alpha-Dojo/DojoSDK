@@ -154,7 +154,10 @@ class MacroSentimentResponse(DojoModel):
 # --- Benchmark ---
 class BenchmarkKLineResponse(DojoModel):
     total_num: int
-    data: List[Dict[str, Any]]
+    data: Union[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]]]
+
+
+BenchmarkKlineResponse = BenchmarkKLineResponse
 
 
 class BenchmarkPriceResponse(DojoModel):
@@ -362,7 +365,7 @@ class StockEventRemindResponse(DojoModel):
 
 class StockFinIndicatorsResponse(DojoModel):
     total_num: int | None = None
-    data: List[Dict[str, Any]] | None = None
+    data: Union[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]]] | None = None
 
 
 class StockFinCalendarResponse(DojoModel):
@@ -801,7 +804,11 @@ class AttributionFactorItem(DojoModel):
 
 
 class AttributionFactorResponse(DojoModel):
-    total_num: int | None = None
+    page: int
+    size: int
+    total_num: int
+    total_page: int
+    num: int
     data: List[AttributionFactorItem] | List[Dict[str, Any]] | None = None
 
 

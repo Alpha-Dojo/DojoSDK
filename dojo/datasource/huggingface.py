@@ -58,6 +58,7 @@ class HuggingFaceDataSource:
         cache_key = f"{spec.repo_id}/{relative}"
 
         if cache_key in self._df_cache and not refresh:
+            self._warm_companion_files(spec, params)
             return self._df_cache[cache_key]
 
         local_path = self._download_and_cleanup(
@@ -75,6 +76,7 @@ class HuggingFaceDataSource:
             df["index_symbol"] = df.symbol
             df = df.set_index("index_symbol")
         self._df_cache[cache_key] = df
+        self._warm_companion_files(spec, params)
         return df
 
     def _load_dataset(self, spec: HFEndpointSpec, params: dict[str, Any], refresh: bool = False):
@@ -859,6 +861,41 @@ class StockDataSource(HuggingFaceAttributionFactorDataSource):
                     ticker_val = symbols_val
                 params["ticker"] = ticker_val
 
+        if path == "/api/qdata/v1/stock/fin_indicators":
+            symbols_val = params.get("symbol")
+            if symbols_val is None and isinstance(json, dict):
+                symbols_val = json.get("symbol")
+
+            is_multi = False
+            req_symbols: list[str] = []
+            if symbols_val is not None:
+                if isinstance(symbols_val, (list, tuple, set)):
+                    req_symbols = [str(s) for s in symbols_val]
+                    is_multi = len(req_symbols) > 1
+                elif isinstance(symbols_val, str) and "," in symbols_val:
+                    req_symbols = [s.strip() for s in symbols_val.split(",") if s.strip()]
+                    is_multi = True
+
+            if is_multi:
+                fetch_params = dict(params)
+                limit_val = fetch_params.pop("limit", None)
+                res = super().fetch(method=method, path=path, params=fetch_params, json=json)
+                if isinstance(res, dict) and isinstance(res.get("data"), dict):
+                    raw_rows = res["data"].get("data", [])
+                    if isinstance(raw_rows, list):
+                        grouped: dict[str, list[dict]] = {s: [] for s in req_symbols}
+                        for row in raw_rows:
+                            sym = row.get("symbol")
+                            if sym in grouped:
+                                if limit_val is not None and isinstance(limit_val, int) and limit_val > 0:
+                                    if len(grouped[sym]) >= limit_val:
+                                        continue
+                                row_copy = dict(row)
+                                row_copy.pop("symbol", None)
+                                grouped[sym].append(row_copy)
+                        res["data"] = {"total_num": len(grouped), "data": grouped}
+                return res
+
         return super().fetch(method=method, path=path, params=params, json=json)
 
 
@@ -872,7 +909,7 @@ class HuggingFaceKlineDataSource(StockDataSource):
         spec = resolve(path)
         if not spec:
             raise OfflineDataNotAvailableError(f"Endpoint {path} is not registered in the HuggingFace offline registry.")
-        if path != "/api/qdata/v1/stock/kline":
+        if path not in {"/api/qdata/v1/stock/kline", "/api/qdata/v1/benchmark/kline"}:
             return super().fetch(method=method, path=path, params=params, json=json)
 
         merged = dict(params)
