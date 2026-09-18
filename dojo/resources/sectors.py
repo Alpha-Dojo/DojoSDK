@@ -254,29 +254,41 @@ class Sectors(SyncAPIResource):
     def get_symbol_relations(
         self,
         *,
+        sector_id: int | None = None,
         sector_name: str | None = None,
         symbol: str | None = None,
         relation_priority: str | None = None,
-        market: str,
+        version: str | None = None,
+        market: str | None = None,
     ) -> SectorSymbolRelationListResponse:
         """Retrieves relationships between sectors and stock/instrument symbols.
 
         Parameters
         ----------
+        sector_id : int, optional
+            Canonical sector ID to query.
         sector_name : str, optional
             Sector name to query.
         symbol : str, optional
             Symbol to query.
         relation_priority : str, optional
             Relation priority filter.
+        version : str, optional
+            Sector taxonomy version filter.
+        market : str, optional
+            Market filter (us, zh/cn, or hk).
         """
         params: dict[str, Any] = {}
+        if sector_id is not None:
+            params["sector_id"] = sector_id
         if sector_name is not None:
             params["sector_name"] = sector_name
         if symbol is not None:
             params["symbol"] = symbol
         if relation_priority is not None:
             params["relation_priority"] = relation_priority
+        if version is not None:
+            params["version"] = version
         if market is not None:
             params["market"] = market
         return self._get(
@@ -781,29 +793,41 @@ class AsyncSectors(AsyncAPIResource):
     async def get_symbol_relations(
         self,
         *,
+        sector_id: int | None = None,
         sector_name: str | None = None,
         symbol: str | None = None,
         relation_priority: str | None = None,
+        version: str | None = None,
         market: str | None = None,
     ) -> SectorSymbolRelationListResponse:
         """Retrieves relationships between sectors and stock/instrument symbols asynchronously.
 
         Parameters
         ----------
+        sector_id : int, optional
+            Canonical sector ID to query.
         sector_name : str, optional
             Sector name to query.
         symbol : str, optional
             Symbol to query.
         relation_priority : str, optional
             Relation priority filter.
+        version : str, optional
+            Sector taxonomy version filter.
+        market : str, optional
+            Market filter (us, zh/cn, or hk).
         """
         params: dict[str, Any] = {}
+        if sector_id is not None:
+            params["sector_id"] = sector_id
         if sector_name is not None:
             params["sector_name"] = sector_name
         if symbol is not None:
             params["symbol"] = symbol
         if relation_priority is not None:
             params["relation_priority"] = relation_priority
+        if version is not None:
+            params["version"] = version
         if market is not None:
             params["market"] = market
         return await self._get(
