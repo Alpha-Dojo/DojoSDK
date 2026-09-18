@@ -925,30 +925,34 @@ class SectorBriefComponent(DojoModel):
 
 class SectorBriefExtractWriteItem(DojoModel):
     market: Literal["us", "cn", "hk"]
-    sector_id: str = Field(min_length=1, max_length=128)
+    sector_ref: str = Field(min_length=1, max_length=64, pattern=r"^\d+/\d+/\d+$")
+    sector_id: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^\d+/\d+/\d+$")
     as_of_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    brief_uid: str | None = Field(default=None, min_length=1, max_length=128)
-    key_drivers: List[SectorBriefDriver] = Field(max_length=5)
-    key_risks: List[SectorBriefRisk] = Field(max_length=4)
-    top_components: List[SectorBriefComponent] = Field(max_length=8)
+    key_drivers: List[SectorBriefDriver] = Field(min_length=1, max_length=5)
+    key_risks: List[SectorBriefRisk] = Field(default_factory=list, max_length=4)
+    top_components: List[SectorBriefComponent] = Field(min_length=1, max_length=8)
 
 
 class SectorBriefExtractItem(SectorBriefExtractWriteItem):
-    id: int | None = None
+    id: int
+    sector_id: int
     generation_time: str | None = None
-    created_at: str | None = None
-    updated_at: str | None = None
 
 
 class SectorBriefExtractListResponse(DojoModel):
-    total_num: int | None = None
+    page: int
+    size: int
+    total_num: int
+    total_page: int
+    num: int
     data: List[SectorBriefExtractItem] | List[Dict[str, Any]] | None = None
 
 
 class SectorBriefExtractWriteRequest(DojoModel):
     items: List[SectorBriefExtractWriteItem] = Field(min_length=1, max_length=10000)
-    generation_time: str | None = None
+    generation_time: str
 
 
 class SectorBriefExtractWriteResponse(DojoModel):
     data: List[SectorBriefExtractItem] | None = None
+    receipt: Dict[str, Any] | None = None

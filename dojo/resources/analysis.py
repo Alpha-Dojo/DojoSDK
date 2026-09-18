@@ -339,10 +339,11 @@ class Analysis(SyncAPIResource):
     def list_sector_brief_extract(
         self,
         *,
+        start_date: str,
+        page: int | None = None,
+        size: int | None = None,
         market: str | None = None,
-        sector_id: int | str | None = None,
-        as_of_date: str | None = None,
-        start_date: str | None = None,
+        sector_id: int | None = None,
         end_date: str | None = None,
         limit: int | None = None,
     ) -> SectorBriefExtractListResponse:
@@ -350,9 +351,10 @@ class Analysis(SyncAPIResource):
         params = {
             key: value
             for key, value in {
+                "page": page,
+                "size": size,
                 "market": market,
                 "sector_id": sector_id,
-                "as_of_date": as_of_date,
                 "start_date": start_date,
                 "end_date": end_date,
                 "limit": limit,
@@ -785,10 +787,11 @@ class AsyncAnalysis(AsyncAPIResource):
     async def list_sector_brief_extract(
         self,
         *,
+        start_date: str,
+        page: int | None = None,
+        size: int | None = None,
         market: str | None = None,
-        sector_id: str | None = None,
-        as_of_date: str | None = None,
-        start_date: str | None = None,
+        sector_id: int | None = None,
         end_date: str | None = None,
         limit: int | None = None,
     ) -> SectorBriefExtractListResponse:
@@ -796,9 +799,10 @@ class AsyncAnalysis(AsyncAPIResource):
         params = {
             key: value
             for key, value in {
+                "page": page,
+                "size": size,
                 "market": market,
                 "sector_id": sector_id,
-                "as_of_date": as_of_date,
                 "start_date": start_date,
                 "end_date": end_date,
                 "limit": limit,
