@@ -11,6 +11,11 @@ callers can rely on.
 
 Sync and async appends force `max_retries=0` without changing retry configuration for reads. A 500, timeout, or connection failure may follow a successful write; read back the result and resolve manually before appending again. HTTP error messages support both FastAPI `detail` and qdata `message`; the original response remains available as exception `body`.
 
+## MarketResearch result content contract (0.1.32)
+
+Result snapshots accept an optional `thumbnail_base64` field containing a Base64-encoded thumbnail cover image. This applies to `initial_result` during research creation, result appends, and result corrections.
+
+Research lists, `public_research` lists, research detail, and result history queries all accept `result_content_fields`. It is a comma-separated selection of `outcome`, `outcome_markdown`, and `thumbnail_base64`, for example `result_content_fields="outcome,thumbnail_base64"`. Unselected content fields are returned as `None`; omitting the parameter returns all three fields. The server applies the same selection to `producer_payload`.
 
 Use `client.analysis.list_public_market_research(page=1, size=10)` for strictly public research; AsyncDojo provides the same async method. It reads `/api/qdata/v1/analysis/public_research`, accepts no scope/visibility, and adds no public detail or write API. Domain filters, sorting and both pagination forms are supported; false and offset=0 are preserved. PublicResearchListResponse / PublicResearchCardResponse require public visibility and is_editor_pick. The required observation_window/sector_id/impact fields allow null. Existing list_market_research keeps its route and adds impact/timeline_source/visibility filters.
 

@@ -26,6 +26,7 @@ RESULT_BODY = {
     "probability_pct": None,
     "outcome": "<p>Evidence is currently insufficient for a reliable probability.</p>",
     "outcome_markdown": "Evidence is currently insufficient for a reliable probability.",
+    "thumbnail_base64": "dGh1bWJuYWlsLWNvdmVy",
     "timeline": [],
     "used_event_uids": [],
     "generation_time": "2026-09-14T10:00:00Z",
@@ -51,11 +52,31 @@ def test_result_metadata_defaults_and_response_parsing() -> None:
     request = ResearchResultSnapshotRequest.model_validate(legacy)
     assert request.title == "" and request.description == ""
     assert request.outcome_markdown == RESULT_BODY["outcome_markdown"]
+    request_without_thumbnail = ResearchResultSnapshotRequest.model_validate(
+        {key: value for key, value in RESULT_BODY.items() if key != "thumbnail_base64"}
+    )
+    assert request_without_thumbnail.thumbnail_base64 is None
     response = ResearchResultResponse.model_validate({**RESULT_BODY, "result_id": 901, "research_uid": "research-1"})
     assert response.title == RESULT_BODY["title"]
     assert response.description == RESULT_BODY["description"]
     assert response.outcome == RESULT_BODY["outcome"]
     assert response.outcome_markdown == RESULT_BODY["outcome_markdown"]
+    assert response.thumbnail_base64 == RESULT_BODY["thumbnail_base64"]
+    selected_response = ResearchResultResponse.model_validate(
+        {
+            **RESULT_BODY,
+            "result_id": 903,
+            "research_uid": "research-1",
+            "outcome": None,
+            "outcome_markdown": None,
+            "thumbnail_base64": None,
+            "producer_payload": {"outcome_markdown": RESULT_BODY["outcome_markdown"]},
+        }
+    )
+    assert selected_response.outcome is None
+    assert selected_response.outcome_markdown is None
+    assert selected_response.thumbnail_base64 is None
+    assert selected_response.producer_payload == {"outcome_markdown": RESULT_BODY["outcome_markdown"]}
     legacy_response = ResearchResultResponse.model_validate(
         {**{key: value for key, value in legacy.items() if key != "outcome_markdown"}, "result_id": 902, "research_uid": "research-1"}
     )
@@ -124,12 +145,20 @@ def test_market_research_sync_root_result_and_timeline_methods() -> None:
     assert client.post.call_args.args[0] == "/api/qdata/v1/analysis/research"
     assert client.post.call_args.kwargs["cast_to"] is ResearchAggregateResponse
     assert client.post.call_args.kwargs["options"]["json"]["initial_result"]["probability_pct"] is None
+    assert client.post.call_args.kwargs["options"]["json"]["initial_result"]["thumbnail_base64"] == RESULT_BODY["thumbnail_base64"]
 
     analysis.get_market_research(ROOT_BODY["research_uid"])
     client.get.assert_called_with(
         "/api/qdata/v1/analysis/research/research-energy-2026-001",
         cast_to=ResearchAggregateResponse,
         options={},
+    )
+
+    analysis.get_market_research(ROOT_BODY["research_uid"], result_content_fields="thumbnail_base64")
+    client.get.assert_called_with(
+        "/api/qdata/v1/analysis/research/research-energy-2026-001",
+        cast_to=ResearchAggregateResponse,
+        options={"params": {"result_content_fields": "thumbnail_base64"}},
     )
 
     analysis.list_market_research_results(ROOT_BODY["research_uid"], limit=10, offset=20)
@@ -170,6 +199,7 @@ def test_market_research_sync_list_forwards_query_contract() -> None:
         start_time="2026-09-01",
         end_time="2026-09-30",
         fuzzy="resolve",
+        result_content_fields="outcome,thumbnail_base64",
         order_by="title",
         order_type="asc",
         page=2,
@@ -187,6 +217,7 @@ def test_market_research_sync_list_forwards_query_contract() -> None:
                 "start_time": "2026-09-01",
                 "end_time": "2026-09-30",
                 "fuzzy": "resolve",
+                "result_content_fields": "outcome,thumbnail_base64",
                 "order_by": "title",
                 "order_type": "asc",
                 "page": 2,
@@ -202,6 +233,7 @@ def test_market_research_sync_list_forwards_query_contract() -> None:
         start_time="2026-09-01T00:00:00Z",
         end_time="2026-09-30T00:00:00+00:00",
         fuzzy="evidence",
+        result_content_fields="outcome_markdown,thumbnail_base64",
         order_by="task_name",
         order_type="asc",
         page=1,
@@ -215,6 +247,7 @@ def test_market_research_sync_list_forwards_query_contract() -> None:
                 "start_time": "2026-09-01T00:00:00Z",
                 "end_time": "2026-09-30T00:00:00+00:00",
                 "fuzzy": "evidence",
+                "result_content_fields": "outcome_markdown,thumbnail_base64",
                 "order_by": "task_name",
                 "order_type": "asc",
                 "page": 1,
@@ -255,6 +288,14 @@ async def test_market_research_async_root_and_list_routes() -> None:
         "/api/qdata/v1/analysis/research",
         cast_to=ResearchListResponse,
         options={"params": {"scope": "mine", "is_editor_pick": False}},
+    )
+
+    client.get.reset_mock()
+    await analysis.get_market_research(ROOT_BODY["research_uid"], result_content_fields="outcome,thumbnail_base64")
+    client.get.assert_awaited_once_with(
+        "/api/qdata/v1/analysis/research/research-energy-2026-001",
+        cast_to=ResearchAggregateResponse,
+        options={"params": {"result_content_fields": "outcome,thumbnail_base64"}},
     )
 
     await analysis.create_market_research_result(ROOT_BODY["research_uid"], body=RESULT_BODY)
@@ -469,7 +510,16 @@ def test_public_research_contract_and_sync_route():
     with pytest.raises(ValidationError):
         PublicResearchCardResponse.model_validate({k: v for k, v in card.items() if k != "is_editor_pick"})
     client = Mock()
-    params = dict(page=1, size=10, is_editor_pick=False, offset=0, limit=25, impact="high", timeline_source="manual")
+    params = dict(
+        page=1,
+        size=10,
+        is_editor_pick=False,
+        offset=0,
+        limit=25,
+        impact="high",
+        timeline_source="manual",
+        result_content_fields="thumbnail_base64",
+    )
     Analysis(client).list_public_market_research(**params)
     client.get.assert_called_once_with("/api/qdata/v1/analysis/public_research", cast_to=PublicResearchListResponse, options={"params": params})
     with pytest.raises(TypeError):
@@ -499,6 +549,7 @@ async def test_public_research_async_route_and_common_filter_parity():
         status="tracking",
         impact="severe",
         timeline_source="manual",
+        result_content_fields="outcome_markdown,thumbnail_base64",
         order_by="title",
         order_type="asc",
         limit=30,

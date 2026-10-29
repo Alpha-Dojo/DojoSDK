@@ -10,6 +10,11 @@
 
 同步与异步结果追加均强制 `max_retries=0`，不改变客户端读请求的重试配置。500、超时和连接失败可能存在写入副作用；先读取结果核验，再人工决定恢复，禁止盲目重复追加。HTTP 错误文本同时支持 FastAPI `detail` 和 qdata `message`，原始响应仍保存在异常 `body` 中。
 
+## MarketResearch 结果内容契约（0.1.32）
+
+结果快照可通过可空的 `thumbnail_base64` 字段写入 Base64 编码的缩略封面图，包括创建 research 时的 `initial_result`、追加 result 和修正 result。
+
+research 列表、`public_research` 列表、research 详情和 result 历史查询均接受 `result_content_fields`。该参数使用逗号分隔，可选择 `outcome`、`outcome_markdown` 和 `thumbnail_base64`，例如 `result_content_fields="outcome,thumbnail_base64"`。未选择的内容字段返回 `None`；不传参数时返回全部三个字段。服务端也会按相同选择过滤 `producer_payload`。
 
 纯公开研究使用 `client.analysis.list_public_market_research(page=1, size=10)`；AsyncDojo 使用同名异步方法。此方法固定读取 `/api/qdata/v1/analysis/public_research`，不接受 scope/visibility，不提供公开研究的写入或详情能力。支持行业、研究状态、impact、timeline_source、is_editor_pick、日期、搜索、排序及两组分页参数；false/offset=0 原样保留。响应 PublicResearchListResponse / PublicResearchCardResponse 中 visibility 固定 public，is_editor_pick 必填，observation_window/sector_id/impact 字段必填但允许 null。通用 list_market_research 继续查询原路径，现支持 impact/timeline_source/visibility。
 
