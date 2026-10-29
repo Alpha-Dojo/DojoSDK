@@ -7,6 +7,8 @@ from dojo.resources.base import AsyncAPIResource, SyncAPIResource,normalize_naiv
 from dojo.types.models import (
     EtfHoldingsResponse,
     EtfTopHoldingTargetResponse,
+    EtfLabelsResponse,
+    EtfCategoryResponse
 )
 
 
@@ -88,6 +90,77 @@ class Etf(SyncAPIResource):
             options={"params": params},
         )
 
+    def get_etf_labels(
+        self,
+        *,
+        ticker: str | None = None,
+        market: str | None = None,
+        subcategory_code: str | None = None,
+        category_code: str | None = None,
+        belong_type: str | None = None,
+    ) -> EtfLabelsResponse:
+        """Query ETF labels.
+
+        Parameters
+        ----------
+        ticker : str, optional
+            ETF ticker(s), multiple tickers separated by comma (e.g. 'SPY,QQQ,IWM').
+        market : str, optional
+            Market code, e.g. 'US', 'CN', 'HK'. Exact match.
+        subcategory_code : str, optional
+            Sub-category code, e.g. '0101'. Exact match.
+        category_code : str, optional
+            Top-level category code, e.g. '01'. Exact match.
+        belong_type : str, optional
+            Belong type label. Exact match.
+        """
+        params: dict[str, Any] = {}
+        if ticker is not None:
+            params["ticker"] = ticker
+        if market is not None:
+            params["market"] = market
+        if subcategory_code is not None:
+            params["subcategory_code"] = subcategory_code
+        if category_code is not None:
+            params["category_code"] = category_code
+        if belong_type is not None:
+            params["belong_type"] = belong_type
+        return self._get(
+            "/api/qdata/v1/etf/labels",
+            cast_to=EtfLabelsResponse,
+            options={"params": params},
+        )
+
+    def get_etf_categories(
+        self,
+        *,
+        category_code: str | None = None,
+        parent_code: str | None = None,
+        level: int | None = None,
+    ) -> EtfCategoryResponse:
+        """Query ETF category dictionary (self-referencing tree).
+
+        Parameters
+        ----------
+        category_code : str, optional
+            Category code(s), multiple codes separated by comma (e.g. '01,0101,0102').
+        parent_code : str, optional
+            Parent category code, e.g. '01' to list its children. Exact match.
+        level : int, optional
+            Category level: 1 for top level, 2 for sub level. Exact match.
+        """
+        params: dict[str, Any] = {}
+        if category_code is not None:
+            params["category_code"] = category_code
+        if parent_code is not None:
+            params["parent_code"] = parent_code
+        if level is not None:
+            params["level"] = level
+        return self._get(
+            "/api/qdata/v1/etf/categories",
+            cast_to=EtfCategoryResponse,
+            options={"params": params},
+        )
 
 class AsyncEtf(AsyncAPIResource):
 
@@ -164,5 +237,59 @@ class AsyncEtf(AsyncAPIResource):
         return await self._get(
             "/api/qdata/v1/etf/top_holding_target",
             cast_to=EtfTopHoldingTargetResponse,
+            options={"params": params},
+        )
+
+    async def get_etf_labels(
+        self,
+        *,
+        ticker: str | None = None,
+        market: str | None = None,
+        subcategory_code: str | None = None,
+        category_code: str | None = None,
+        belong_type: str | None = None,
+    ) -> EtfLabelsResponse:
+        """Query ETF labels asynchronously.
+
+        See ``ETF.get_etf_labels`` for parameter details.
+        """
+        params: dict[str, Any] = {}
+        if ticker is not None:
+            params["ticker"] = ticker
+        if market is not None:
+            params["market"] = market
+        if subcategory_code is not None:
+            params["subcategory_code"] = subcategory_code
+        if category_code is not None:
+            params["category_code"] = category_code
+        if belong_type is not None:
+            params["belong_type"] = belong_type
+        return await self._get(
+            "/api/qdata/v1/etf/labels",
+            cast_to=EtfLabelsResponse,
+            options={"params": params},
+        )
+
+    async def get_etf_categories(
+        self,
+        *,
+        category_code: str | None = None,
+        parent_code: str | None = None,
+        level: int | None = None,
+    ) -> EtfCategoryResponse:
+        """Query ETF category dictionary asynchronously.
+
+        See ``ETF.get_etf_categories`` for parameter details.
+        """
+        params: dict[str, Any] = {}
+        if category_code is not None:
+            params["category_code"] = category_code
+        if parent_code is not None:
+            params["parent_code"] = parent_code
+        if level is not None:
+            params["level"] = level
+        return await self._get(
+            "/api/qdata/v1/etf/categories",
+            cast_to=EtfCategoryResponse,
             options={"params": params},
         )

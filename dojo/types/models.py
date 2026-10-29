@@ -1197,3 +1197,12 @@ class EtfHoldingTargetRow(EtfHoldingRow):
 class EtfTopHoldingTargetResponse(BaseModel):
     total_num: int
     data: list[EtfHoldingTargetRow]
+
+
+class EtfLabelsResponse(BaseModel):
+    total_num: int
+    data: list[dict]
+
+class EtfCategoryResponse(BaseModel):
+    total_num: int
+    data: list[dict]
