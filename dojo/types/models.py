@@ -1190,3 +1190,7 @@ class EtfLabelsResponse(BaseModel):
 class EtfCategoryResponse(BaseModel):
     total_num: int
     data: list[dict]
+
+class FeaturesResponse(BaseModel):
+    total_num: int = Field(default=0, description="Total number of stocks match screen conditions.")
+    data: dict[str, list[dict]] = Field(default_factory=dict, description="List of stock features for each symbol")

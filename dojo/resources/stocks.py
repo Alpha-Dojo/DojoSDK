@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime,date
 from typing import Any, List, Literal
 import warnings
 
@@ -30,6 +30,7 @@ from dojo.types.models import (
     StockFinIndicatorsResponse,
     StockFinCalendarResponse,
     StockMainIncomeResponse,
+    FeaturesResponse,
 )
 
 
@@ -905,6 +906,43 @@ class Stocks(SyncAPIResource):
 
     main_income = get_main_income
 
+    def get_stock_features(
+        self,
+        *,
+        symbol: str | list[str],
+        start_trading_date: date | None = None,
+        end_trading_date: date | None = None ,
+        stat_type: str = 'ttm',
+        feature_type: str = 'all'
+    ) -> FeaturesResponse:
+        """
+        query stock features with multi symbols, start_date, end_date, stat_type, feature_type
+        return a dict with key as symbol, value as list of features
+
+        Parameters
+        ----------
+        
+        - stat_type : str
+            ttm | annual | accumulate.  default ttm.
+        - feature_type : str
+            all | price | financial.  default all. price return only price features, financial only financial features
+
+        """
+        symbol_val = ",".join(symbol) if isinstance(symbol, (list, tuple, set)) else symbol
+
+        params: dict[str, Any] = {"symbol" : symbol_val, "stat_type" : stat_type, "feature_type" : feature_type}
+        
+        if start_trading_date is not None:
+            params["start_trading_date"] = start_trading_date
+        if end_trading_date is not None:
+            params["end_trading_date"] = end_trading_date
+        return self._get(
+            "/api/qdata/v1/stock/features",
+            cast_to=FeaturesResponse,
+            options={"params": params},
+        )
+
+    stock_features = get_stock_features
 
 class AsyncStocks(AsyncAPIResource):
 
@@ -1777,3 +1815,43 @@ class AsyncStocks(AsyncAPIResource):
         )
 
     main_income = get_main_income
+
+    async def get_stock_features(
+        self,
+        symbol: str | list[str],
+        start_trading_date: date | None = None,
+        end_trading_date: date | None = None ,
+        stat_type: str = 'ttm',
+        feature_type: str = 'all'
+    ) -> FeaturesResponse:
+        """
+        query stock features with multi symbols, start_date, end_date, stat_type, feature_type
+        return a dict with key as symbol, value as list of features
+
+        Parameters
+        ----------
+
+        - stat_type : str
+            ttm | annual | accumulate.  default ttm.
+        - feature_type : str
+            all | price | financial.  default all. price return only price features, financial only financial features
+
+        """
+        symbol_val = ",".join(symbol) if isinstance(symbol, (list, tuple, set)) else symbol
+
+        params: dict[str, Any] = {"symbol" : symbol_val, "stat_type" : stat_type, "feature_type" : feature_type}
+
+        if start_trading_date is not None:
+
+            params["start_trading_date"] = start_trading_date
+            
+        if end_trading_date is not None:
+            params["end_trading_date"] = end_trading_date
+
+        return await self._get(
+            "/api/qdata/v1/stock/features",
+            cast_to=FeaturesResponse,
+            options={"params": params},
+        )
+
+    stock_features = get_stock_features
