@@ -635,6 +635,7 @@ class ResearchTimelineResponse(ResearchTimelineItem):
 
 class ResearchResultSnapshotRequest(ResearchRequestModel):
     research_uid: str | None = None
+    source_lang: str | None = Field(default=None, max_length=32, pattern=r"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$")
     task_name: str
     title: str = Field(default="", max_length=512)
     description: str = ""
