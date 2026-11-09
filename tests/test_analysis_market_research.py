@@ -778,3 +778,37 @@ async def test_starred_scope_annotation_and_wire_parameter(async_mode):
             transport.close()
     assert len(seen) == 1 and seen[0].url.params["scope"] == "starred"
     assert seen[0].url.path == "/api/qdata/v1/analysis/research"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("language", [{}, {"source_lang": None}, {"source_lang": "zh-Hans"}, {"source_lang": "fr-CA"}])
+async def test_source_language_omission_and_clear_in_both_transports(language):
+    sync = Mock()
+    async_client = AsyncMock()
+    sync_analysis, async_analysis = Analysis(sync), AsyncAnalysis(async_client)
+    body = {**RESULT_BODY, **language}
+    sync_analysis.create_market_research_result("r", body=body)
+    await async_analysis.create_market_research_result("r", body=body)
+    sync_analysis.update_market_research_result("r", 9, body=body)
+    await async_analysis.update_market_research_result("r", 9, body=body)
+    for client in (sync, async_client):
+        for method in (client.post, client.put):
+            payload = method.call_args.kwargs["options"]["json"]
+            assert ("source_lang" in payload) == bool(language)
+            assert payload.get("source_lang") == language.get("source_lang")
+            assert payload["probability_pct"] is None
+        assert client.post.call_args.kwargs["options"]["max_retries"] == 0
+
+    class ProducerSnapshot(ResearchResultSnapshotRequest):
+        local_metadata: str = "producer-only"
+
+    root_body = {**ROOT_BODY, "initial_result": ProducerSnapshot.model_validate(body)}
+    sync_analysis.create_market_research(body=root_body)
+    await async_analysis.create_market_research(body=root_body)
+    for client in (sync, async_client):
+        payload = client.post.call_args.kwargs["options"]["json"]
+        assert payload["research_type"] is None
+        initial_result = payload["initial_result"]
+        assert "local_metadata" not in initial_result
+        assert ("source_lang" in initial_result) == bool(language)
+        assert initial_result.get("source_lang") == language.get("source_lang")
