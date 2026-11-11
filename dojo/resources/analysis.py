@@ -35,6 +35,17 @@ from dojo.types.models import (
 )
 
 
+def _research_write_payload(request: ResearchCreateRequest | ResearchResultSnapshotRequest) -> dict[str, Any]:
+    exclude: dict[str, set[str]] | set[str] | None = None
+    if isinstance(request, ResearchCreateRequest):
+        initial_result = request.initial_result
+        if initial_result is not None and "source_lang" not in initial_result.model_fields_set:
+            exclude = {"initial_result": {"source_lang"}}
+    elif "source_lang" not in request.model_fields_set:
+        exclude = {"source_lang"}
+    return model_dump(request, exclude_none=False, exclude=exclude)
+
+
 class Analysis(SyncAPIResource):
 
     def list_sector_l2_events(
@@ -226,7 +237,7 @@ class Analysis(SyncAPIResource):
         return self._post(
             "/api/qdata/v1/analysis/research",
             cast_to=ResearchAggregateResponse,
-            options={"json": model_dump(request, exclude_none=False)},
+            options={"json": _research_write_payload(request)},
         )
 
     def update_market_research(self, research_uid: str, *, body: ResearchUpdateRequest | dict[str, Any]) -> ResearchAggregateResponse:
@@ -310,7 +321,7 @@ class Analysis(SyncAPIResource):
             cast_to=ResearchResultWriteResponse,
             # Explicit nulls are part of the producer contract and must be
             # retained in the server's producer_payload.
-            options={"json": model_dump(request, exclude_none=False), "max_retries": 0},
+            options={"json": _research_write_payload(request), "max_retries": 0},
         )
 
     def update_market_research_result(
@@ -325,7 +336,7 @@ class Analysis(SyncAPIResource):
         return self._put(
             f"/api/qdata/v1/analysis/research/{research_uid}/results/{result_id}",
             cast_to=ResearchResultWriteResponse,
-            options={"json": model_dump(request, exclude_none=False)},
+            options={"json": _research_write_payload(request)},
         )
 
     def replace_market_research_timeline(
@@ -854,7 +865,7 @@ class AsyncAnalysis(AsyncAPIResource):
         return await self._post(
             "/api/qdata/v1/analysis/research",
             cast_to=ResearchAggregateResponse,
-            options={"json": model_dump(request, exclude_none=False)},
+            options={"json": _research_write_payload(request)},
         )
 
     async def update_market_research(self, research_uid: str, *, body: ResearchUpdateRequest | dict[str, Any]) -> ResearchAggregateResponse:
@@ -936,7 +947,7 @@ class AsyncAnalysis(AsyncAPIResource):
         return await self._post(
             f"/api/qdata/v1/analysis/research/{research_uid}/results",
             cast_to=ResearchResultWriteResponse,
-            options={"json": model_dump(request, exclude_none=False), "max_retries": 0},
+            options={"json": _research_write_payload(request), "max_retries": 0},
         )
 
     async def update_market_research_result(
@@ -951,7 +962,7 @@ class AsyncAnalysis(AsyncAPIResource):
         return await self._put(
             f"/api/qdata/v1/analysis/research/{research_uid}/results/{result_id}",
             cast_to=ResearchResultWriteResponse,
-            options={"json": model_dump(request, exclude_none=False)},
+            options={"json": _research_write_payload(request)},
         )
 
     async def replace_market_research_timeline(
