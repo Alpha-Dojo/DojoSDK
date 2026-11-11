@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from dojo.resources.cache import Cache
     from dojo.resources.analysis import Analysis
     from dojo.resources.etf import Etf
+    from dojo.resources.factor import Factor
 
 from dojo.client.base import SyncAPIClient
 from dojo._exceptions import DojoError, OfflineDataNotAvailableError
@@ -332,3 +333,10 @@ class Dojo(SyncAPIClient):
         from dojo.resources.etf import Etf
 
         return Etf(self)
+
+    @cached_property
+    def factor(self) -> Factor:
+        """Access the factor resource namespace for querying factor tables and schemas."""
+        from dojo.resources.factor import Factor
+
+        return Factor(self)

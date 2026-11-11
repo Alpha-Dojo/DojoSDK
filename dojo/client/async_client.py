@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from dojo.resources.cache import AsyncCache
     from dojo.resources.analysis import AsyncAnalysis
     from dojo.resources.etf import AsyncEtf
+    from dojo.resources.factor import AsyncFactor
 
 from dojo.client.base import AsyncAPIClient
 from dojo._exceptions import DojoError, OfflineDataNotAvailableError
@@ -359,3 +360,10 @@ class AsyncDojo(AsyncAPIClient):
         from dojo.resources.etf import AsyncEtf
 
         return AsyncEtf(self)
+
+    @cached_property
+    def factor(self) -> AsyncFactor:
+        """Access the factor resource namespace for querying factor tables and schemas asynchronously."""
+        from dojo.resources.factor import AsyncFactor
+
+        return AsyncFactor(self)

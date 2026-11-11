@@ -30,3 +30,11 @@ Use `Dojo(anonymous=True, online=True)` or `AsyncDojo(anonymous=True, online=Tru
 
 
 Use `list_market_research(scope="starred")` for the current caller's starred research in sync or async mode. Allowed scopes are public/mine/starred; the public-only list still accepts no scope. Sort direction is asc/desc without quotes.
+
+## Factor resource contract
+
+`client.factor` (on both sync `Dojo` and async `AsyncDojo`) exposes DuckDB S3 Tables (Iceberg) factor table querying and schema discovery (online API mode only):
+
+- `client.factor.query(...)` -> `POST /api/qdata/v1/factor/query`: accepts keyword arguments (`table_name`, `start_date`, `end_date`, `tickers`, `listing_market`, `filters`, `fields`, `order_by`, `page`, `size`, `include_total`) or `body` (`FactorQueryRequest` / `dict`), where explicit keyword arguments override matching fields in `body`. Typed response is `FactorQueryResponse`.
+- `client.factor.get_tables(...)` (alias `client.factor.tables(...)`) -> `GET /api/qdata/v1/factor/tables`: accepts optional query parameters `table_name`, `include_columns`, and `refresh_schema`. Typed response is `FactorTablesResponse`.
+

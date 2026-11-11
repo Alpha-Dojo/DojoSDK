@@ -29,3 +29,11 @@ research 列表、`public_research` 列表、research 详情和 result 历史查
 
 
 通用研究列表 `list_market_research(scope="starred")` 查询当前调用者收藏，支持同步/异步。scope 可取 public/mine/starred；公开列表方法仍不接收 scope。排序值为 asc/desc，不含引号。
+
+## Factor 资源契约
+
+`client.factor`（同步 `Dojo` 与异步 `AsyncDojo`）提供 DuckDB S3 Tables（Iceberg）因子表查询与表结构发现接口（仅在线 API 模式）：
+
+- `client.factor.query(...)` -> `POST /api/qdata/v1/factor/query`：支持直接传入关键字参数（`table_name`、`start_date`、`end_date`、`tickers`、`listing_market`、`filters`、`fields`、`order_by`、`page`、`size`、`include_total`）或 `body`（`FactorQueryRequest` / `dict`），显式关键字参数优先覆盖 `body` 中的同名字段。响应类型为 `FactorQueryResponse`。
+- `client.factor.get_tables(...)`（别名 `client.factor.tables(...)`）-> `GET /api/qdata/v1/factor/tables`：支持可选过滤参数 `table_name`、`include_columns`、`refresh_schema`。响应类型为 `FactorTablesResponse`。
+

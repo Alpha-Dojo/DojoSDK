@@ -76,12 +76,26 @@ def load_openapi(filepath):
 
             has_body = "requestBody" in info
             body_required = info.get("requestBody", {}).get("required", False)
+            body_props = {}
+            if has_body:
+                content = info.get("requestBody", {}).get("content", {})
+                json_schema = content.get("application/json", {}).get("schema", {})
+                if "$ref" in json_schema:
+                    ref_name = json_schema["$ref"].split("/")[-1]
+                    json_schema = data.get("components", {}).get("schemas", {}).get(ref_name, {})
+                req_props = set(json_schema.get("required", []))
+                for prop_name, prop_info in json_schema.get("properties", {}).items():
+                    body_props[prop_name] = {
+                        "required": prop_name in req_props,
+                        "type": prop_info.get("type", "any"),
+                    }
 
             endpoints[key] = {
                 "query_params": query_params,
                 "path_params": path_params,
                 "has_body": has_body,
                 "body_required": body_required,
+                "body_props": body_props,
                 "summary": info.get("summary", ""),
                 "operationId": info.get("operationId", ""),
                 "tags": info.get("tags", []),
@@ -248,9 +262,11 @@ def main():
 
             code_args -= code_path_vars
 
+            openapi_body_props = set(openapi_info.get("body_props", {}).keys())
+
             mismatches = []
 
-            if openapi_info["body_required"] and not has_body_arg:
+            if openapi_info["body_required"] and not has_body_arg and not (openapi_body_props and (code_args & openapi_body_props)):
                 mismatches.append("Missing 'body' parameter in code, but OpenAPI requires requestBody")
             elif not openapi_info["has_body"] and has_body_arg:
                 mismatches.append("Extra 'body' parameter in code, but OpenAPI has no requestBody")
@@ -268,7 +284,7 @@ def main():
             if added_query_params:
                 mismatches.append(f"Added Query Params in OpenAPI: {sorted(added_query_params)}")
             if removed_query_params:
-                real_extra = removed_query_params - openapi_path_params
+                real_extra = removed_query_params - openapi_path_params - openapi_body_props
                 if real_extra:
                     mismatches.append(f"Missing in OpenAPI / Extra Query Params in Code: {sorted(real_extra)}")
 

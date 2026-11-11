@@ -4,7 +4,6 @@ import pytest
 import dojo
 from dojo._exceptions import APIStatusError
 
-
 pytestmark = [
     pytest.mark.online_integration,
     pytest.mark.skipif(
@@ -148,3 +147,9 @@ async def test_indices(client):
 @pytest.mark.asyncio
 async def test_instruments(client):
     await run_safe(client.instruments.get())
+
+
+@pytest.mark.asyncio
+async def test_factor(client):
+    await run_safe(client.factor.get_tables())
+    await run_safe(client.factor.query(table_name="etf_daily_factors", size=5))

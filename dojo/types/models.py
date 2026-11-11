@@ -1155,13 +1155,12 @@ class SectorBriefExtractWriteResponse(DojoModel):
     receipt: Dict[str, Any] | None = None
 
 
-
 class EtfHoldingRow(DojoModel):
     symbol: str
     report_date: date
     filing_date: date
     name: str | None = None
-    title:str | None = None
+    title: str | None = None
     isin: str | None = None
     ticker: str | None = None
     cusip: str | None = None
@@ -1190,9 +1189,11 @@ class EtfHoldingsResponse(BaseModel):
     # 多 symbol 时 data 为 dict[str, list[row]]；单 symbol 时 data 为 list[row]
     data: dict[str, list[EtfHoldingRow]] | list[EtfHoldingRow]
 
+
 class EtfHoldingTargetRow(EtfHoldingRow):
-    holding_rank:int | None = None
+    holding_rank: int | None = None
     period_rank: int | None = None
+
 
 class EtfTopHoldingTargetResponse(BaseModel):
     total_num: int
@@ -1203,10 +1204,102 @@ class EtfLabelsResponse(BaseModel):
     total_num: int
     data: list[dict]
 
+
 class EtfCategoryResponse(BaseModel):
     total_num: int
     data: list[dict]
 
+
 class FeaturesResponse(BaseModel):
     total_num: int = Field(default=0, description="Total number of stocks match screen conditions.")
     data: dict[str, list[dict]] = Field(default_factory=dict, description="List of stock features for each symbol")
+
+
+# --- Factor ---
+class OrderBySpec(DojoModel):
+    field: str = Field(min_length=1, max_length=255, description="Column name to sort by.")
+    direction: Literal["asc", "desc", "ASC", "DESC"] = Field(default="asc", description="Sort direction: asc or desc.")
+
+
+class FactorQueryRequest(DojoModel):
+    table_name: str = Field(
+        default="etf_daily_factors",
+        min_length=1,
+        max_length=255,
+        description="Registered factor table name in S3 Tables (e.g. 'etf_daily_factors').",
+    )
+    start_date: date | datetime | str | None = Field(
+        default=None,
+        description="Inclusive lower bound on the table's time column (YYYY-MM-DD or ISO datetime).",
+    )
+    end_date: date | datetime | str | None = Field(
+        default=None,
+        description="Inclusive upper bound on the table's time column (YYYY-MM-DD or ISO datetime).",
+    )
+    tickers: List[str] | str | None = Field(
+        default=None,
+        description="Optional symbol/ticker filter (list of tickers or comma-separated string, max 500).",
+    )
+    listing_market: str | List[str] | None = Field(
+        default=None,
+        description="Optional market filter mapped to the table's market column (e.g. 'US' or ['US', 'HK']).",
+    )
+    filters: Dict[str, Any] | None = Field(
+        default=None,
+        description="Generic column filters. Supports shorthand {'col': val_or_list} and operator dicts.",
+    )
+    fields: List[str] | None = Field(
+        default=None,
+        description="Optional list of columns to return. Omit or pass null to return all columns.",
+    )
+    order_by: List[str | OrderBySpec | Dict[str, Any]] | str | None = Field(
+        default=None,
+        description="Optional sort rules, e.g. ['as_of_date desc', 'ticker asc'] or [{'field': 'as_of_date', 'direction': 'desc'}].",
+    )
+    page: int = Field(
+        default=1,
+        ge=1,
+        le=1000,
+        description="1-based page number.",
+    )
+    size: int = Field(
+        default=100,
+        ge=1,
+        le=1000,
+        description="Page size (1 to 1000, default 100).",
+    )
+    include_total: bool = Field(
+        default=False,
+        description="Whether to execute COUNT(*) to populate total_num and total_page.",
+    )
+
+
+class FactorQueryResponse(DojoModel):
+    meta: Dict[str, Any] | None = None
+    data: List[Dict[str, Any]] | None = None
+
+
+class FactorTableColumnInfo(DojoModel):
+    name: str
+    type: str
+
+
+class FactorTableInfo(DojoModel):
+    table_name: str
+    namespace: str
+    description: str = ""
+    time_column: str
+    time_column_type: str = "DATE"
+    symbol_column: str | None = None
+    market_column: str | None = None
+    partition_columns: List[str] = Field(default_factory=list)
+    key_columns: List[str] = Field(default_factory=list)
+    default_order_by: List[str] = Field(default_factory=list)
+    max_date_span_days: int = 366
+    max_date_span_days_with_symbols: int = 3650
+    columns: List[FactorTableColumnInfo] | None = None
+
+
+class FactorTablesResponse(DojoModel):
+    total_num: int = 0
+    data: List[FactorTableInfo] = Field(default_factory=list)
